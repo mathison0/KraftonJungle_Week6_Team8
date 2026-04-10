@@ -10,7 +10,8 @@ enum class EEngineShowFlags : uint64
 	SF_Collision =1<<4,
 	SF_Billboard = 1 << 5,
 	SF_Text = 1 << 6,
-	SF_Grid = 1<<7,
+	SF_Decal = 1 << 7,
+	SF_Grid = 1 << 8,	
 	 // SF_Grid        = 1 << 3,
 	 // SF_Fog         = 1 << 4,
 };
@@ -22,7 +23,8 @@ public:
 			static_cast<uint64>(EEngineShowFlags::SF_Primitives) |
 			static_cast<uint64>(EEngineShowFlags::SF_UUID) |
 			static_cast<uint64>(EEngineShowFlags::SF_Billboard) |
-			static_cast<uint64>(EEngineShowFlags::SF_Text)) {
+			static_cast<uint64>(EEngineShowFlags::SF_Text)	|
+			static_cast<uint64>(EEngineShowFlags::SF_Decal)) {
 	}
 	void SetFlag(EEngineShowFlags InFlag, bool bEnabled);
 	bool HasFlag(EEngineShowFlags InFlag)const;

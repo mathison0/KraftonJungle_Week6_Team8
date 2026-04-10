@@ -19,6 +19,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Source\Actor\DecalActor.h" />
     <ClInclude Include="Source\Actor\BillboardActor.h" />
     <ClInclude Include="Source\Component\BillboardComponent.h" />
     <ClInclude Include="Source\Component\MoveComponent.h" />
@@ -37,6 +38,7 @@
     <ClInclude Include="Source\Camera\Camera.h" />
     <ClInclude Include="Source\Component\ActorComponent.h" />
     <ClInclude Include="Source\Component\CameraComponent.h" />
+    <ClInclude Include="Source\Component\DecalComponent.h" />
     <ClInclude Include="Source\Component\LineBatchComponent.h" />
     <ClInclude Include="Source\Component\MeshComponent.h" />
     <ClInclude Include="Source\Component\PrimitiveComponent.h" />
@@ -89,6 +91,7 @@
     <ClInclude Include="Source\Primitive\PrimitiveGizmo.h" />
     <ClInclude Include="Source\Primitive\UnrealEditorStyledGizmo.h" />
     <ClInclude Include="Source\Renderer\Feature\DebugLineRenderFeature.h" />
+    <ClInclude Include="Source\Renderer\Feature\DecalRenderFeature.h" />
     <ClInclude Include="Source\Renderer\Feature\OutlineRenderFeature.h" />
     <ClInclude Include="Source\Renderer\Feature\SubUVRenderFeature.h" />
     <ClInclude Include="Source\Renderer\Feature\TextRenderFeature.h" />
@@ -236,6 +239,7 @@
     <ClInclude Include="ThirdParty\nlohmann\json.hpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="Source\Actor\DecalActor.cpp" />
     <ClCompile Include="Source\Actor\Actor.cpp" />
     <ClCompile Include="Source\Actor\BillboardActor.cpp" />
     <ClCompile Include="Source\Actor\CubeActor.cpp" />
@@ -251,6 +255,7 @@
     <ClCompile Include="Source\Component\ActorComponent.cpp" />
     <ClCompile Include="Source\Component\BillboardComponent.cpp" />
     <ClCompile Include="Source\Component\CameraComponent.cpp" />
+    <ClCompile Include="Source\Component\DecalComponent.cpp" />
     <ClCompile Include="Source\Component\LineBatchComponent.cpp" />
     <ClCompile Include="Source\Component\MeshComponent.cpp" />
     <ClCompile Include="Source\Component\MoveComponent.cpp" />
@@ -295,6 +300,7 @@
     <ClCompile Include="Source\Primitive\PrimitiveGizmo.cpp" />
     <ClCompile Include="Source\Primitive\UnrealEditorStyledGizmo.cpp" />
     <ClCompile Include="Source\Renderer\Feature\DebugLineRenderFeature.cpp" />
+    <ClCompile Include="Source\Renderer\Feature\DecalRenderFeature.cpp" />
     <ClCompile Include="Source\Renderer\Feature\OutlineRenderFeature.cpp" />
     <ClCompile Include="Source\Renderer\Feature\SubUVRenderFeature.cpp" />
     <ClCompile Include="Source\Renderer\Feature\TextRenderFeature.cpp" />

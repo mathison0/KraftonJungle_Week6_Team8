@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include "CoreMinimal.h"
 #include "Level/SceneRenderPacket.h"
@@ -9,6 +9,7 @@
 #include "Renderer/Feature/SubUVRenderFeature.h"
 #include "Renderer/Feature/TextRenderFeature.h"
 #include "Renderer/Feature/BillboardRenderFeature.h"
+#include "Renderer/Feature/DecalRenderFeature.h"
 #include "Renderer/RenderFeatureInterfaces.h"
 #include "Renderer/RenderStateManager.h"
 #include "Renderer/SceneRenderer.h"
@@ -168,6 +169,8 @@ public:
 	ISceneSubUVFeature* GetSceneSubUVFeature() const { return SubUVFeature.get(); }
 	// 씬 Billboard 기능 인터페이스를 반환한다.
 	ISceneBillboardFeature* GetSceneBillboardFeature() const { return BillboardFeature.get(); }
+	// 씬 Decal 기능 인터페이스를 반환한다.
+	ISceneDecalFeature* GetSceneDecalFeature() const { return DecalFeature.get(); }
 	// 씬 렌더러에 접근한다.
 	FSceneRenderer& GetSceneRenderer() { return SceneRenderer; }
 	// 화면 UI 렌더러에 접근한다.
@@ -223,6 +226,7 @@ private:
 	std::unique_ptr<FTextRenderFeature> TextFeature;
 	std::unique_ptr<FSubUVRenderFeature> SubUVFeature;
 	std::unique_ptr<FBillboardRenderFeature> BillboardFeature;
+	std::unique_ptr<FDecalRenderFeature> DecalFeature;
 	std::unique_ptr<FOutlineRenderFeature> OutlineFeature;
 	std::unique_ptr<FDebugLineRenderFeature> DebugLineFeature;
 

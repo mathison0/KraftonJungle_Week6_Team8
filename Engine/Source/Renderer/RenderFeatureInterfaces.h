@@ -6,6 +6,7 @@
 class FMaterial;
 struct FRenderMesh;
 class UBillboardComponent;
+class UDecalComponent;
 
 class ENGINE_API ISceneTextFeature
 {
@@ -36,4 +37,13 @@ public:
 	virtual bool BuildMesh(const FVector2& Size, FRenderMesh& OutMesh) const = 0;
 	virtual FMaterial* GetOrCreateMaterial(const UBillboardComponent& Component) = 0;
 	virtual void PruneMaterials(const TArray<const UBillboardComponent*>& ActiveComponents) = 0;
+};
+
+class ENGINE_API ISceneDecalFeature
+{
+public:
+	virtual ~ISceneDecalFeature() = default;
+	virtual FMaterial* GetBaseMaterial() const = 0;
+	virtual bool BuildMesh(const FVector& Extent, FRenderMesh& OutMesh) const = 0;
+
 };

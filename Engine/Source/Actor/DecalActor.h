@@ -2,16 +2,15 @@
 
 #include "Actor.h"
 
-class USubUVComponent;
+class UDecalComponent;
 
-class ENGINE_API ASubUVActor : public AActor
+class ENGINE_API ADecalActor : public AActor
 {
 public:
-	DECLARE_RTTI(ASubUVActor, AActor)
-
+	DECLARE_RTTI(ADecalActor, AActor)
 	void PostSpawnInitialize() override;
 	void FixupDuplicatedReferences(UObject* DuplicatedObject, const FDuplicateContext& Context) const override;
 
 private:
-	USubUVComponent* SubUVComponent = nullptr;
+	UDecalComponent* DecalComponent = nullptr;
 };

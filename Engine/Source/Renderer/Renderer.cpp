@@ -1,4 +1,4 @@
-﻿#include "Renderer.h"
+#include "Renderer.h"
 #include "ShaderType.h"
 #include "Shader.h"
 #include "ShaderMap.h"
@@ -154,6 +154,12 @@ bool FRenderer::Initialize(HWND InHwnd, int32 Width, int32 Height)
 		return false;
 	}
 
+	DecalFeature = std::make_unique<FDecalRenderFeature>();
+	if (!DecalFeature || !DecalFeature->Initialize(*this))
+	{
+		return false;
+	}
+
 	OutlineFeature = std::make_unique<FOutlineRenderFeature>();
 	DebugLineFeature = std::make_unique<FDebugLineRenderFeature>();
 
@@ -182,6 +188,10 @@ void FRenderer::BeginFrame()
 	constexpr float ClearColor[4] = { 0.1f, 0.1f, 0.1f, 1.0f };
 	RenderDevice.BeginFrame(ClearColor);
 	SceneRenderer.BeginFrame();
+	if (DecalFeature)
+	{
+		DecalFeature->BeginFrame();
+	}
 }
 
 void FRenderer::EndFrame()
