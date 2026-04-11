@@ -4,6 +4,7 @@
 #include "Renderer/RenderType.h"
 
 class FMaterial;
+struct FMaterialTexture;
 struct FRenderMesh;
 class UBillboardComponent;
 class UDecalComponent;
@@ -45,5 +46,6 @@ public:
 	virtual ~ISceneDecalFeature() = default;
 	virtual FMaterial* GetBaseMaterial() const = 0;
 	virtual bool BuildMesh(const FVector& Extent, FRenderMesh& OutMesh) const = 0;
+	virtual std::shared_ptr<FMaterialTexture> GetOrLoadTexture(const std::wstring& Path) = 0;
 
 };

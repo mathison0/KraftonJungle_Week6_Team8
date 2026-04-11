@@ -1,8 +1,9 @@
-﻿#include "Renderer/SceneCommandBuilder.h"
+#include "Renderer/SceneCommandBuilder.h"
 
 #include <algorithm>
 
 #include "Component/BillboardComponent.h"
+#include "Component/DecalComponent.h"
 #include "Component/StaticMeshComponent.h"
 #include "Component/SubUVComponent.h"
 #include "Component/TextComponent.h"
@@ -132,6 +133,59 @@ FMaterial* FSceneCommandBuilder::GetOrCreateSubUVMaterial(
 	return Material;
 }
 
+FMaterial* FSceneCommandBuilder::GetOrCreateDecalMaterial(
+	const FSceneCommandBuildContext& BuildContext,
+	const UDecalComponent* Component)
+{
+	if (!Component || !BuildContext.DecalFeature)
+	{
+		return nullptr;
+	}
+
+	FMaterial* BaseDecalMaterial = BuildContext.DecalFeature->GetBaseMaterial();
+	if (!BaseDecalMaterial)
+	{
+		return nullptr;
+	}
+
+	auto Found = DecalMaterialsByComponent.find(Component);
+	if (Found == DecalMaterialsByComponent.end())
+	{
+		std::unique_ptr<FDynamicMaterial> OwnedMaterial = BaseDecalMaterial->CreateDynamicMaterial();
+		if (!OwnedMaterial)
+		{
+			return BaseDecalMaterial;
+		}
+		std::shared_ptr<FDynamicMaterial> Material(OwnedMaterial.release());
+		Found = DecalMaterialsByComponent.emplace(Component, std::move(Material)).first;
+	}
+
+	FDynamicMaterial* Material = Found->second.get();
+	if (!Material)
+	{
+		return BaseDecalMaterial;
+	}
+
+	FVector4 BaseColor = Component->GetTintColor();
+	BaseColor.W *= Component->GetOpacity();
+	if (!Material->SetVectorParameter("BaseColor", BaseColor))
+	{
+		Material->SetVectorParameter("ColorTint", BaseColor);
+	}
+
+	const std::wstring& TexturePath = Component->GetTexturePath();
+	if (!TexturePath.empty())
+	{
+		std::shared_ptr<FMaterialTexture> Texture = BuildContext.DecalFeature->GetOrLoadTexture(TexturePath);
+		if (Texture)
+		{
+			Material->SetMaterialTexture(Texture);
+		}
+	}
+
+	return Material;
+}
+
 void FSceneCommandBuilder::PruneStaleSubUVMaterials(const TArray<const USubUVComponent*>& ActiveComponents)
 {
 	for (auto It = SubUVMaterialsByComponent.begin(); It != SubUVMaterialsByComponent.end();)
@@ -139,6 +193,20 @@ void FSceneCommandBuilder::PruneStaleSubUVMaterials(const TArray<const USubUVCom
 		if (std::find(ActiveComponents.begin(), ActiveComponents.end(), It->first) == ActiveComponents.end())
 		{
 			It = SubUVMaterialsByComponent.erase(It);
+			continue;
+		}
+
+		++It;
+	}
+}
+
+void FSceneCommandBuilder::PruneStaleDecalMaterials(const TArray<const UDecalComponent*>& ActiveComponents)
+{
+	for (auto It = DecalMaterialsByComponent.begin(); It != DecalMaterialsByComponent.end();)
+	{
+		if (std::find(ActiveComponents.begin(), ActiveComponents.end(), It->first) == ActiveComponents.end())
+		{
+			It = DecalMaterialsByComponent.erase(It);
 			continue;
 		}
 
@@ -371,4 +439,56 @@ void FSceneCommandBuilder::BuildQueue(
 	{
 		BuildContext.BillboardFeature->PruneMaterials(ActiveBillboardComponents);
 	}
+
+	TArray<const UDecalComponent*> ActiveDecalComponents;
+	ActiveDecalComponents.reserve(Packet.DecalPrimitives.size());
+
+	for (const FSceneDecalPrimitive& Primitive : Packet.DecalPrimitives)
+	{
+		UDecalComponent* DecalComponent = Primitive.Component;
+		if (!DecalComponent || !BuildContext.DecalFeature)
+		{
+			continue;
+		}
+
+		std::shared_ptr<FDynamicMesh> DecalMesh = std::make_shared<FDynamicMesh>();
+		if (!BuildContext.DecalFeature->BuildMesh(DecalComponent->GetDecalExtent(), *DecalMesh))
+		{
+			continue;
+		}
+
+		if (DecalMesh->Vertices.empty())
+		{
+			continue;
+		}
+
+		DecalMesh->bIsDirty = true;
+
+		FMaterial* DecalMaterial = GetOrCreateDecalMaterial(BuildContext, DecalComponent);
+		if (!DecalMaterial)
+		{
+			DecalMaterial = BuildContext.DecalFeature->GetBaseMaterial();
+		}
+		if (!DecalMaterial)
+		{
+			continue;
+		}
+
+		FRenderCommand Command;
+		Command.RenderMeshOwner = DecalMesh;
+		Command.RenderMesh = DecalMesh.get();
+		Command.Material = DecalMaterial;
+		Command.RenderLayer = ERenderLayer::Transparent;
+		Command.bDisableDepthWrite = true;
+		Command.bDisableCulling = true;
+		Command.WorldMatrix = DecalComponent->GetWorldTransform();
+
+		const FVector WorldPosition = Command.WorldMatrix.GetTranslation();
+		Command.TransparentSortDistanceSq = (WorldPosition - CameraPosition).SizeSquared();
+
+		OutQueue.AddCommand(Command);
+		ActiveDecalComponents.push_back(DecalComponent);
+	}
+
+	PruneStaleDecalMaterials(ActiveDecalComponents);
 }

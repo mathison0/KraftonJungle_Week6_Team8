@@ -1,4 +1,4 @@
-﻿#include "Renderer/SceneRenderer.h"
+#include "Renderer/SceneRenderer.h"
 
 #include <algorithm>
 
@@ -40,6 +40,7 @@ void FSceneRenderer::BuildQueue(
 	BuildContext.TextFeature = Renderer.GetSceneTextFeature();
 	BuildContext.SubUVFeature = Renderer.GetSceneSubUVFeature();
 	BuildContext.BillboardFeature = Renderer.GetSceneBillboardFeature();
+	BuildContext.DecalFeature = Renderer.GetSceneDecalFeature();
 	BuildContext.TotalTimeSeconds = SceneView.TotalTimeSeconds;
 
 	SceneCommandBuilder.BuildQueue(BuildContext, Packet, SceneView.CameraPosition, OutQueue);

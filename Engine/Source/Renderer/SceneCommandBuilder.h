@@ -39,6 +39,7 @@ private:
 	FMaterial* GetOrCreateDecalMaterial(const FSceneCommandBuildContext& BuildContext, const UDecalComponent* Component);
 
 	void PruneStaleSubUVMaterials(const TArray<const USubUVComponent*>& ActiveComponents);
+	void PruneStaleDecalMaterials(const TArray<const UDecalComponent*>& ActiveComponents);
 
 	static uint32 ToColorKey(const FVector4& Color);
 	static void UpdateSubUVMaterialParams(
