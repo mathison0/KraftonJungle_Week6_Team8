@@ -265,6 +265,13 @@ FMaterial* FSceneCommandBuilder::GetOrCreateDecalMaterial(
 	const FVector& Extent = Component->GetDecalExtent();
 	const FVector4 DecalExtent(Extent.X, Extent.Y, Extent.Z, 0.0f);
 	Material->SetParameterData("DecalExtent", &DecalExtent, sizeof(FVector4));
+	const FVector2 ViewportSize = BuildContext.ViewportSize;
+	const FVector4 ScreenSize(
+		ViewportSize.X,
+		ViewportSize.Y,
+		ViewportSize.X > 0.0f ? 1.0f / ViewportSize.X : 0.0f,
+		ViewportSize.Y > 0.0f ? 1.0f / ViewportSize.Y : 0.0f);
+	Material->SetParameterData("ScreenSize", &ScreenSize, sizeof(FVector4));
 
 	const FMatrix DecalWorldTransform = Component->GetWorldTransform();
 	const FVector DecalOrigin = DecalWorldTransform.GetTranslation();
@@ -564,7 +571,7 @@ void FSceneCommandBuilder::BuildQueue(
 	for (const FSceneDecalPrimitive& Primitive : Packet.DecalPrimitives)
 	{
 		UDecalComponent* DecalComponent = Primitive.Component;
-		if (!DecalComponent || !BuildContext.DecalFeature || !Packet.SceneLevel)
+		if (!DecalComponent || !BuildContext.DecalFeature)
 		{
 			continue;
 		}
@@ -579,88 +586,35 @@ void FSceneCommandBuilder::BuildQueue(
 			continue;
 		}
 
-		const FOBB DecalOBB = MakeDecalOBB(*DecalComponent);
-		TArray<UPrimitiveComponent*> CandidatePrimitives;
-		Packet.SceneLevel->QueryPrimitivesByBounds(
-			[&DecalOBB](const FAABB& Bounds)
-			{
-				return IntersectOBBAABB(DecalOBB, Bounds);
-			},
-			CandidatePrimitives);
-
-		bool bHasReceiver = false;
-		for (UPrimitiveComponent* Candidate : CandidatePrimitives)
+		auto FoundMesh = DecalMeshesByComponent.find(DecalComponent);
+		if (FoundMesh == DecalMeshesByComponent.end())
 		{
-			if (!Candidate || Candidate == DecalComponent || !Candidate->IsA(UStaticMeshComponent::StaticClass()))
-			{
-				continue;
-			}
-
-			UStaticMeshComponent* Receiver = static_cast<UStaticMeshComponent*>(Candidate);
-			if (Receiver->GetRenderMesh())
-			{
-				bHasReceiver = true;
-				break;
-			}
+			FoundMesh = DecalMeshesByComponent.emplace(DecalComponent, std::make_shared<FDynamicMesh>()).first;
 		}
 
-		if (!bHasReceiver)
+		std::shared_ptr<FDynamicMesh> DecalMesh = FoundMesh->second;
+		if (!DecalMesh)
 		{
 			continue;
 		}
 
-		bool bSubmittedReceiver = false;
-		for (UPrimitiveComponent* Candidate : CandidatePrimitives)
+		if (!BuildContext.DecalFeature->BuildMesh(DecalComponent->GetDecalExtent(), *DecalMesh))
 		{
-			if (!Candidate || Candidate == DecalComponent || !Candidate->IsA(UStaticMeshComponent::StaticClass()))
-			{
-				continue;
-			}
-
-			UStaticMeshComponent* Receiver = static_cast<UStaticMeshComponent*>(Candidate);
-			FRenderMesh* ReceiverMesh = Receiver->GetRenderMesh();
-			if (!ReceiverMesh)
-			{
-				continue;
-			}
-
-			const int32 SectionCount = ReceiverMesh->GetNumSection();
-			if (SectionCount <= 0)
-			{
-				FRenderCommand Command;
-				Command.RenderMesh = ReceiverMesh;
-				Command.Material = DecalMaterial;
-				Command.RenderLayer = ERenderLayer::Decal;
-				Command.SortPriority = DecalComponent->GetSortOrder();
-				Command.bDisableDepthWrite = true;
-				Command.WorldMatrix = Receiver->GetWorldTransform();
-				OutQueue.AddCommand(Command);
-				bSubmittedReceiver = true;
-				continue;
-			}
-
-			for (int32 SectionIndex = 0; SectionIndex < SectionCount; ++SectionIndex)
-			{
-				const FMeshSection& Section = ReceiverMesh->Sections[SectionIndex];
-
-				FRenderCommand Command;
-				Command.RenderMesh = ReceiverMesh;
-				Command.Material = DecalMaterial;
-				Command.RenderLayer = ERenderLayer::Decal;
-				Command.SortPriority = DecalComponent->GetSortOrder();
-				Command.bDisableDepthWrite = true;
-				Command.WorldMatrix = Receiver->GetWorldTransform();
-				Command.IndexStart = Section.StartIndex;
-				Command.IndexCount = Section.IndexCount;
-				OutQueue.AddCommand(Command);
-				bSubmittedReceiver = true;
-			}
+			continue;
 		}
+		DecalMesh->bIsDirty = true;
 
-		if (bSubmittedReceiver)
-		{
-			ActiveDecalComponents.push_back(DecalComponent);
-		}
+		FRenderCommand Command;
+		Command.RenderMesh = DecalMesh.get();
+		Command.RenderMeshOwner = DecalMesh;
+		Command.Material = DecalMaterial;
+		Command.RenderLayer = ERenderLayer::Decal;
+		Command.SortPriority = DecalComponent->GetSortOrder();
+		Command.bDisableDepthTest = true;
+		Command.bDisableDepthWrite = true;
+		Command.WorldMatrix = DecalComponent->GetWorldTransform();
+		OutQueue.AddCommand(Command);
+		ActiveDecalComponents.push_back(DecalComponent);
 	}
 
 	PruneStaleDecalMaterials(ActiveDecalComponents);

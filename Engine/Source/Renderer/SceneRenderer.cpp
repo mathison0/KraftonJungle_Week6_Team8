@@ -44,6 +44,7 @@ void FSceneRenderer::BuildQueue(
 	BuildContext.SubUVFeature = Renderer.GetSceneSubUVFeature();
 	BuildContext.BillboardFeature = Renderer.GetSceneBillboardFeature();
 	BuildContext.DecalFeature = Renderer.GetSceneDecalFeature();
+	BuildContext.ViewportSize = FVector2(Viewport.Width, Viewport.Height);
 	BuildContext.TotalTimeSeconds = SceneView.TotalTimeSeconds;
 
 	if (BuildContext.DecalFeature)
@@ -182,7 +183,7 @@ void FSceneRenderer::SortRenderPass(TArray<FRenderCommand>& Commands, ERenderLay
 	}
 }
 
-void FSceneRenderer::ExecuteCommands(FRenderer& Renderer)
+void FSceneRenderer::ExecuteCommands(FRenderer& Renderer, ID3D11DepthStencilView* DepthStencilView)
 {
 	Renderer.SetConstantBuffers();
 	Renderer.UpdateFrameConstantBuffer();
@@ -191,8 +192,23 @@ void FSceneRenderer::ExecuteCommands(FRenderer& Renderer)
 	SortRenderPass(DefaultCommandList, ERenderLayer::Default);
 	ExecuteRenderPass(Renderer, DefaultCommandList);
 
-	SortRenderPass(DecalCommandList, ERenderLayer::Decal);
-	ExecuteRenderPass(Renderer, DecalCommandList);
+	if (!DecalCommandList.empty())
+	{
+		FDecalRenderFeature* DecalFeature = static_cast<FDecalRenderFeature*>(Renderer.GetSceneDecalFeature());
+		if (DecalFeature && DecalFeature->UpdateDepthCopy(Renderer, DepthStencilView))
+		{
+			ID3D11ShaderResourceView* DepthSRV = DecalFeature->GetDepthTextureSRV();
+			for (FRenderCommand& Command : DecalCommandList)
+			{
+				if (Command.Material)
+				{
+					Command.Material->SetPixelTextureBinding(1, DepthSRV, nullptr);
+				}
+			}
+			SortRenderPass(DecalCommandList, ERenderLayer::Decal);
+			ExecuteRenderPass(Renderer, DecalCommandList);
+		}
+	}
 
 	SortRenderPass(TransparentCommandList, ERenderLayer::Transparent);
 	ExecuteRenderPass(Renderer, TransparentCommandList);
@@ -392,6 +408,6 @@ bool FSceneRenderer::RenderQueueToTarget(
 	}
 
 	SubmitCommands(Renderer, Queue);
-	ExecuteCommands(Renderer);
+	ExecuteCommands(Renderer, DepthStencilView);
 	return true;
 }

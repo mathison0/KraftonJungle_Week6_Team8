@@ -22,6 +22,7 @@ struct ENGINE_API FSceneCommandBuildContext
 	ISceneSubUVFeature* SubUVFeature = nullptr;
 	ISceneBillboardFeature* BillboardFeature = nullptr;
 	ISceneDecalFeature* DecalFeature = nullptr;
+	FVector2 ViewportSize = FVector2(0.0f, 0.0f);
 	float TotalTimeSeconds = 0.0f;
 };
 

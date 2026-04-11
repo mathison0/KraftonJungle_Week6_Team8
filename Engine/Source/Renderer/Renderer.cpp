@@ -181,6 +181,7 @@ void FRenderer::SetConstantBuffers()
 
 	ID3D11Buffer* CBs[2] = { FrameConstantBuffer, ObjectConstantBuffer };
 	DeviceContext->VSSetConstantBuffers(0, 2, CBs);
+	DeviceContext->PSSetConstantBuffers(0, 2, CBs);
 }
 
 void FRenderer::BeginFrame()
