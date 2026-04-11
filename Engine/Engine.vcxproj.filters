@@ -344,6 +344,10 @@
     <ClCompile Include="Source\Component\MoveComponent.cpp">
       <Filter>Source\Component</Filter>
     </ClCompile>
+    <ClCompile Include="Source\Actor\PlayerCameraActor.cpp" />
+    <ClCompile Include="Source\Component\DecalComponent.cpp" />
+    <ClCompile Include="Source\Renderer\Feature\DecalRenderFeature.cpp" />
+    <ClCompile Include="Source\Level\DecalClusterGrid.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Source\CoreMinimal.h">
@@ -972,6 +976,10 @@
     <ClInclude Include="Source\Component\MoveComponent.h">
       <Filter>Source\Component</Filter>
     </ClInclude>
+    <ClInclude Include="Source\Actor\PlayerCameraActor.h" />
+    <ClInclude Include="Source\Component\DecalComponent.h" />
+    <ClInclude Include="Source\Renderer\Feature\DecalRenderFeature.h" />
+    <ClInclude Include="Source\Level\DecalClusterGrid.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />

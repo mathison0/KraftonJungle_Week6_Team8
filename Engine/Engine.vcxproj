@@ -21,6 +21,7 @@
   <ItemGroup>
     <ClInclude Include="Source\Actor\BillboardActor.h" />
     <ClInclude Include="Source\Component\BillboardComponent.h" />
+    <ClInclude Include="Source\Component\DecalComponent.h" />
     <ClInclude Include="Source\Component\MoveComponent.h" />
     <ClInclude Include="Source\CoreMinimal.h" />
     <ClInclude Include="Source\EngineAPI.h" />
@@ -63,6 +64,7 @@
     <ClInclude Include="Source\Input\InputMappingContext.h" />
     <ClInclude Include="Source\Input\InputModifier.h" />
     <ClInclude Include="Source\Input\inputTrigger.h" />
+    <ClInclude Include="Source\Level\DecalClusterGrid.h" />
     <ClInclude Include="Source\Math\Frustum.h" />
     <ClInclude Include="Source\Math\MathUtility.h" />
     <ClInclude Include="Source\Math\Matrix.h" />
@@ -89,6 +91,7 @@
     <ClInclude Include="Source\Primitive\PrimitiveGizmo.h" />
     <ClInclude Include="Source\Primitive\UnrealEditorStyledGizmo.h" />
     <ClInclude Include="Source\Renderer\Feature\DebugLineRenderFeature.h" />
+    <ClInclude Include="Source\Renderer\Feature\DecalRenderFeature.h" />
     <ClInclude Include="Source\Renderer\Feature\OutlineRenderFeature.h" />
     <ClInclude Include="Source\Renderer\Feature\SubUVRenderFeature.h" />
     <ClInclude Include="Source\Renderer\Feature\TextRenderFeature.h" />
@@ -251,6 +254,7 @@
     <ClCompile Include="Source\Component\ActorComponent.cpp" />
     <ClCompile Include="Source\Component\BillboardComponent.cpp" />
     <ClCompile Include="Source\Component\CameraComponent.cpp" />
+    <ClCompile Include="Source\Component\DecalComponent.cpp" />
     <ClCompile Include="Source\Component\LineBatchComponent.cpp" />
     <ClCompile Include="Source\Component\MeshComponent.cpp" />
     <ClCompile Include="Source\Component\MoveComponent.cpp" />
@@ -275,6 +279,7 @@
     <ClCompile Include="Source\Input\EnhancedInputManager.cpp" />
     <ClCompile Include="Source\Input\InputManager.cpp" />
     <ClCompile Include="Source\Input\InputMappingContext.cpp" />
+    <ClCompile Include="Source\Level\DecalClusterGrid.cpp" />
     <ClCompile Include="Source\Math\Frustum.cpp" />
     <ClCompile Include="Source\Math\Matrix.cpp" />
     <ClCompile Include="Source\Math\Quat.cpp" />
@@ -295,6 +300,7 @@
     <ClCompile Include="Source\Primitive\PrimitiveGizmo.cpp" />
     <ClCompile Include="Source\Primitive\UnrealEditorStyledGizmo.cpp" />
     <ClCompile Include="Source\Renderer\Feature\DebugLineRenderFeature.cpp" />
+    <ClCompile Include="Source\Renderer\Feature\DecalRenderFeature.cpp" />
     <ClCompile Include="Source\Renderer\Feature\OutlineRenderFeature.cpp" />
     <ClCompile Include="Source\Renderer\Feature\SubUVRenderFeature.cpp" />
     <ClCompile Include="Source\Renderer\Feature\TextRenderFeature.cpp" />
