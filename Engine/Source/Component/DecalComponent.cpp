@@ -2,7 +2,7 @@
 #include "Object/Class.h"
 #include "Renderer/Material.h"
 
-IMPLEMENT_RTTI(UDecalComponent, UObject)
+IMPLEMENT_RTTI(UDecalComponent, UPrimitiveComponent)
 
 void UDecalComponent::SetDecalSize(const FVector &InSize)
 {
