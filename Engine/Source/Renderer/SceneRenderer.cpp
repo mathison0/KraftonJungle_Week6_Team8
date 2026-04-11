@@ -169,6 +169,28 @@ void FSceneRenderer::ExecuteCommands(FRenderer& Renderer)
 	ClearCommandLists();
 }
 
+void FSceneRenderer::ExecuteBasePassCommands(FRenderer& Renderer)
+{
+    Renderer.SetConstantBuffers();
+    Renderer.UpdateFrameConstantBuffer();
+
+    SortRenderPass(DefaultCommandList, ERenderLayer::Default);
+    ExecuteRenderPass(Renderer, DefaultCommandList);
+
+    SortRenderPass(TransparentCommandList, ERenderLayer::Transparent);
+    ExecuteRenderPass(Renderer, TransparentCommandList);
+}
+
+void FSceneRenderer::ExecuteOverlayPassCommands(FRenderer& Renderer)
+{
+    Renderer.ClearDepthBuffer();
+
+    SortRenderPass(OverlayCommandList, ERenderLayer::Overlay);
+    ExecuteRenderPass(Renderer, OverlayCommandList);
+    
+    ClearCommandLists();
+}
+
 void FSceneRenderer::ExecuteRenderPass(FRenderer& Renderer, const TArray<FRenderCommand>& Commands)
 {
 	if (Commands.empty())
