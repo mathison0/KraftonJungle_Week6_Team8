@@ -232,6 +232,12 @@ void ULevel::QueryPrimitivesByFrustum(const FFrustum& Frustum, TArray<UPrimitive
 	SpatialBVH.QueryFrustum(Frustum, OutPrimitives);
 }
 
+void ULevel::QueryPrimitivesByBounds(const FBoundsOverlapPredicate& Predicate, TArray<UPrimitiveComponent*>& OutPrimitives) const
+{
+	RebuildSpatialIfNeeded();
+	SpatialBVH.QueryBounds(Predicate, OutPrimitives);
+}
+
 void ULevel::QueryPrimitivesByRay(const FVector& RayOrigin, const FVector& RayDirection, float MaxDistance, TArray<UPrimitiveComponent*>& OutPrimitives) const
 {
 	RebuildSpatialIfNeeded();

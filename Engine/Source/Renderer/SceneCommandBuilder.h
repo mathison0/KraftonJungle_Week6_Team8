@@ -6,6 +6,7 @@
 
 class FMaterial;
 class FDynamicMaterial;
+struct FDynamicMesh;
 struct FRenderCommandQueue;
 class UBillboardComponent;
 class USubUVComponent;
@@ -52,4 +53,5 @@ private:
 	TMap<uint32, std::shared_ptr<FDynamicMaterial>> TextMaterialsByColor;
 	TMap<const USubUVComponent*, std::shared_ptr<FDynamicMaterial>> SubUVMaterialsByComponent;
 	TMap<const UDecalComponent*, std::shared_ptr<FDynamicMaterial>> DecalMaterialsByComponent;
+	TMap<const UDecalComponent*, std::shared_ptr<FDynamicMesh>> DecalMeshesByComponent;
 };

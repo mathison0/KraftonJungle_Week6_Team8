@@ -175,6 +175,8 @@ public:
 	ID3D11RenderTargetView* GetRenderTargetView() const { return RenderTargetView; }
 	// 백버퍼 DSV 접근자다.
 	ID3D11DepthStencilView* GetDepthStencilView() const { return DepthStencilView; }
+	// 깊이 버퍼 SRV 접근자다.
+	ID3D11ShaderResourceView* GetDepthShaderResourceView() const { return DepthShaderResourceView; }
 	// 렌더 대상 윈도우 핸들을 반환한다.
 	HWND GetHwnd() const { return Hwnd; }
 	// 백버퍼 전체를 덮는 기본 뷰포트를 반환한다.

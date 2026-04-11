@@ -7,6 +7,7 @@ class UTextRenderComponent;
 class USubUVComponent;
 class UBillboardComponent;
 class UDecalComponent;
+class ULevel;
 
 struct ENGINE_API FSceneMeshPrimitive
 {
@@ -40,6 +41,7 @@ struct ENGINE_API FSceneDecalPrimitive
 
 struct ENGINE_API FSceneRenderPacket
 {
+	ULevel* SceneLevel = nullptr;
 	// 이 뷰에서 월드로부터 수집한 메시 프리미티브 목록이다.
 	TArray<FSceneMeshPrimitive> MeshPrimitives;
 	// 이 뷰에서 월드로부터 수집한 텍스트 프리미티브 목록이다.
@@ -64,6 +66,7 @@ struct ENGINE_API FSceneRenderPacket
 	// 패킷 안의 모든 프리미티브 버킷을 비운다.
 	void Clear()
 	{
+		SceneLevel = nullptr;
 		MeshPrimitives.clear();
 		TextPrimitives.clear();
 		SubUVPrimitives.clear();

@@ -11,6 +11,7 @@ void ADecalActor::PostSpawnInitialize()
 {
 	DecalComponent = FObjectFactory::ConstructObject<UDecalComponent>(this, "DecalComponent");
 	AddOwnedComponent(DecalComponent);
+	DecalComponent->SetTexturePath((FPaths::TextureDir() / L"texture.png").wstring());
 	AActor::PostSpawnInitialize();
 }
 

@@ -196,6 +196,16 @@ void BVH::QueryFrustum(const FFrustum& Frustum, TArray<UPrimitiveComponent*>& Ou
 	QueryFrustumRecursive(Root, Frustum, OutPrimitives);
 }
 
+void BVH::QueryBounds(const FBoundsOverlapPredicate& Predicate, TArray<UPrimitiveComponent*>& OutPrimitives) const
+{
+	if (!Predicate)
+	{
+		return;
+	}
+
+	QueryBoundsRecursive(Root, Predicate, OutPrimitives);
+}
+
 void BVH::QueryFrustumRecursive(const BuildNode* Node, const FFrustum& Frustum, TArray<UPrimitiveComponent*>& OutPrimitives) const
 {
 	if (!Node)
@@ -223,6 +233,30 @@ void BVH::QueryFrustumRecursive(const BuildNode* Node, const FFrustum& Frustum, 
 
 	QueryFrustumRecursive(Node->Left, Frustum, OutPrimitives);
 	QueryFrustumRecursive(Node->Right, Frustum, OutPrimitives);
+}
+
+void BVH::QueryBoundsRecursive(const BuildNode* Node, const FBoundsOverlapPredicate& Predicate, TArray<UPrimitiveComponent*>& OutPrimitives) const
+{
+	if (!Node || !Predicate(Node->Bounds))
+	{
+		return;
+	}
+
+	if (Node->IsLeaf())
+	{
+		for (int32 Index = 0; Index < Node->PrimCount; ++Index)
+		{
+			const FPrimRef& Ref = PrimitiveRefs[Node->FirstPrimOffset + Index];
+			if (Ref.Primitive && Predicate(Ref.Bounds))
+			{
+				OutPrimitives.push_back(Ref.Primitive);
+			}
+		}
+		return;
+	}
+
+	QueryBoundsRecursive(Node->Left, Predicate, OutPrimitives);
+	QueryBoundsRecursive(Node->Right, Predicate, OutPrimitives);
 }
 
 void BVH::QueryRay(const Ray& InRay, float MaxDistance, TArray<UPrimitiveComponent*>& OutPrimitives) const

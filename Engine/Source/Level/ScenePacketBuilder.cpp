@@ -48,11 +48,13 @@ bool FScenePacketBuilder::ShouldIncludePrimitive(UPrimitiveComponent* Primitive,
 }
 
 void FScenePacketBuilder::BuildScenePacket(
+	ULevel* Level,
 	const TArray<UPrimitiveComponent*>& VisiblePrimitives,
 	const FShowFlags& ShowFlags,
 	FSceneRenderPacket& OutPacket)
 {
 	OutPacket.Clear();
+	OutPacket.SceneLevel = Level;
 	OutPacket.Reserve(VisiblePrimitives.size());
 
 	for (UPrimitiveComponent* Primitive : VisiblePrimitives)

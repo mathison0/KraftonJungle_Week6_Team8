@@ -15,6 +15,7 @@ class ENGINE_API FScenePacketBuilder
 public:
 	// 이미 수집된 프리미티브를 ShowFlag 기준으로 분류해 씬 패킷에 기록한다.
 	void BuildScenePacket(
+		class ULevel* Level,
 		const TArray<UPrimitiveComponent*>& VisiblePrimitives,
 		const FShowFlags& ShowFlags,
 		FSceneRenderPacket& OutPacket);

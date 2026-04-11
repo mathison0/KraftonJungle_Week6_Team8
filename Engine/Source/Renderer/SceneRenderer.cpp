@@ -197,21 +197,9 @@ void FSceneRenderer::ExecuteCommands(FRenderer& Renderer)
 		ID3D11RenderTargetView* BoundRTV = nullptr;
 		ID3D11DepthStencilView* BoundDSV = nullptr;
 		DeviceContext->OMGetRenderTargets(1, &BoundRTV, &BoundDSV);
-		if (BoundRTV)
-		{
-			DeviceContext->OMSetRenderTargets(1, &BoundRTV, nullptr);
-		}
-
+		DeviceContext->OMSetRenderTargets(1, &BoundRTV, nullptr);
 		ExecuteRenderPass(Renderer, DecalCommandList);
-
-		ID3D11ShaderResourceView* NullSRV = nullptr;
-		DeviceContext->PSSetShaderResources(1, 1, &NullSRV);
-
-		if (BoundRTV)
-		{
-			DeviceContext->OMSetRenderTargets(1, &BoundRTV, BoundDSV);
-		}
-
+		DeviceContext->OMSetRenderTargets(1, &BoundRTV, BoundDSV);
 		if (BoundRTV)
 		{
 			BoundRTV->Release();

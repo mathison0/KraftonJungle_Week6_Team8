@@ -91,7 +91,7 @@ void IViewportClient::BuildSceneRenderPacket(
 
 	TArray<UPrimitiveComponent*> VisiblePrimitives;
 	Level->QueryPrimitivesByFrustum(Frustum, VisiblePrimitives);
-	ScenePacketBuilder.BuildScenePacket(VisiblePrimitives, Flags, OutPacket);
+	ScenePacketBuilder.BuildScenePacket(Level, VisiblePrimitives, Flags, OutPacket);
 }
 
 void IViewportClient::HandleFileDoubleClick(const FString& FilePath)

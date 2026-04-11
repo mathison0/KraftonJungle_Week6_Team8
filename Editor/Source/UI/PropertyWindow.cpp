@@ -8,11 +8,13 @@
 #include "Component/SceneComponent.h"
 #include "Component/StaticMeshComponent.h"
 #include "Component/SubUVComponent.h"
+#include "Component/DecalComponent.h"
 #include "Component/TextComponent.h"
 #include "Component/UUIDBillboardComponent.h"
 #include "Component/BillboardComponent.h"
 #include "Component/MoveComponent.h"
 #include "Level/Level.h"
+#include "Core/Paths.h"
 #include "Object/Class.h"
 #include "Object/ObjectFactory.h"
 #include "Object/ObjectIterator.h"
@@ -124,7 +126,7 @@ USceneComponent* FPropertyWindow::GetSelectedSceneComponent(AActor* SelectedActo
 }
 
 void FPropertyWindow::SetTarget(const FVector& Location, const FVector& Rotation,
-                                const FVector& Scale, const char* ActorName)
+								const FVector& Scale, const char* ActorName)
 {
 	EditLocation = Location;
 	EditRotation = Rotation;
@@ -500,6 +502,100 @@ void FPropertyWindow::DrawBillboardComponentDetials(UBillboardComponent* Billboa
 	BillboardComponent->SetUVMax(FVector2(UL, VL));
 }
 
+void FPropertyWindow::DrawDecalComponentDetails(UDecalComponent* DecalComponent)
+{
+	if (!DecalComponent)
+	{
+		return;
+	}
+
+	ImGui::Spacing();
+	ImGui::TextDisabled("Decal");
+
+	FVector Extent = DecalComponent->GetDecalExtent();
+	float ExtentArray[3] = { Extent.X, Extent.Y, Extent.Z };
+	if (ImGui::DragFloat3("Extent", ExtentArray, 0.01f, 0.01f, 100.0f, "%.2f"))
+	{
+		DecalComponent->SetDecalExtent(FVector(ExtentArray[0], ExtentArray[1], ExtentArray[2]));
+		if (AActor* Owner = DecalComponent->GetOwner())
+		{
+			if (ULevel* Level = Owner->GetLevel())
+			{
+				Level->MarkSpatialDirty();
+			}
+		}
+	}
+
+	FVector4 TintColor = DecalComponent->GetTintColor();
+	float ColorArray[4] = { TintColor.X, TintColor.Y, TintColor.Z, TintColor.W };
+	if (ImGui::ColorEdit4("Tint", ColorArray))
+	{
+		DecalComponent->SetTintColor(FVector4(ColorArray[0], ColorArray[1], ColorArray[2], ColorArray[3]));
+	}
+
+	float Opacity = DecalComponent->GetOpacity();
+	if (ImGui::DragFloat("Opacity", &Opacity, 0.01f, 0.0f, 1.0f, "%.2f"))
+	{
+		DecalComponent->SetOpacity(Opacity);
+	}
+
+	int32 SortOrder = DecalComponent->GetSortOrder();
+	if (ImGui::DragInt("Sort Order", &SortOrder, 1.0f))
+	{
+		DecalComponent->SetSortOrder(SortOrder);
+	}
+
+	bool bHiddenInGame = DecalComponent->IsHiddenInGame();
+	if (ImGui::Checkbox("Hidden In Game", &bHiddenInGame))
+	{
+		DecalComponent->SetHiddenInGame(bHiddenInGame);
+	}
+
+	std::wstring CurrentPath = DecalComponent->GetTexturePath();
+	std::string CurrentFileName = CurrentPath.empty() ? "None" : std::filesystem::path(CurrentPath).filename().string();
+	if (ImGui::BeginCombo("Texture", CurrentFileName.c_str()))
+	{
+		auto DrawTextureDirectory = [&](const std::filesystem::path& Directory)
+		{
+			if (!std::filesystem::exists(Directory))
+			{
+				return;
+			}
+
+			for (const auto& Entry : std::filesystem::directory_iterator(Directory))
+			{
+				if (!Entry.is_regular_file())
+				{
+					continue;
+				}
+
+				const std::filesystem::path Extension = Entry.path().extension();
+				if (Extension != ".png" && Extension != ".jpg" && Extension != ".jpeg" && Extension != ".dds")
+				{
+					continue;
+				}
+
+				const std::wstring CandidatePath = Entry.path().wstring();
+				const std::string FileName = Entry.path().filename().string();
+				const bool bSelected = (CandidatePath == CurrentPath);
+				if (ImGui::Selectable(FileName.c_str(), bSelected))
+				{
+					DecalComponent->SetTexturePath(CandidatePath);
+				}
+
+				if (bSelected)
+				{
+					ImGui::SetItemDefaultFocus();
+				}
+			}
+		};
+
+		DrawTextureDirectory(FPaths::TextureDir());
+		DrawTextureDirectory(FPaths::ContentDir() / "Textures");
+		ImGui::EndCombo();
+	}
+}
+
 void FPropertyWindow::DrawDetailsSection(UActorComponent* Component, FEditorEngine* Engine)
 {
 	if (!Component)
@@ -586,6 +682,11 @@ void FPropertyWindow::DrawDetailsSection(UActorComponent* Component, FEditorEngi
 	if (Component->IsA(UBillboardComponent::StaticClass()))
 	{
 		DrawBillboardComponentDetials(static_cast<UBillboardComponent*>(Component), Engine);
+	}
+
+	if (Component->IsA(UDecalComponent::StaticClass()))
+	{
+		DrawDecalComponentDetails(static_cast<UDecalComponent*>(Component));
 	}
 }
 

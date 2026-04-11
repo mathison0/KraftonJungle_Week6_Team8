@@ -238,7 +238,7 @@ bool FDecalRenderFeature::InitializeBaseMaterial(FRenderer& Renderer)
 
 	FRasterizerStateOption RasterizerOption;
 	RasterizerOption.FillMode = D3D11_FILL_SOLID;
-	RasterizerOption.CullMode = D3D11_CULL_FRONT;
+	RasterizerOption.CullMode = D3D11_CULL_BACK;
 	BaseMaterial->SetRasterizerOption(RasterizerOption);
 	BaseMaterial->SetRasterizerState(Renderer.GetRenderStateManager()->GetOrCreateRasterizerState(RasterizerOption));
 
@@ -263,15 +263,18 @@ bool FDecalRenderFeature::InitializeBaseMaterial(FRenderer& Renderer)
 	if (SlotIndex >= 0)
 	{
 		BaseMaterial->RegisterParameter("BaseColor", SlotIndex, 0, sizeof(FVector4));
+		BaseMaterial->RegisterParameter("DecalExtent", SlotIndex, 16, sizeof(FVector4));
 	}
 
 	const int32 MatrixSlotIndex = BaseMaterial->CreateConstantBuffer(Device, sizeof(FMatrix));
 	if (MatrixSlotIndex >= 0)
 	{
-		BaseMaterial->RegisterParameter("DecalViewProjection", MatrixSlotIndex, 0, sizeof(FMatrix));
+		BaseMaterial->RegisterParameter("WorldToDecal", MatrixSlotIndex, 0, sizeof(FMatrix));
 	}
 	const FVector4 DefaultColor(1.0f, 1.0f, 1.0f, 1.0f);
+	const FVector4 DefaultExtent(1.0f, 0.5f, 0.5f, 0.0f);
 	BaseMaterial->SetParameterData("BaseColor", &DefaultColor, sizeof(FVector4));
+	BaseMaterial->SetParameterData("DecalExtent", &DefaultExtent, sizeof(FVector4));
 
 	return true;
 }

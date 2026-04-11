@@ -1,6 +1,8 @@
 #include "Renderer/SceneCommandBuilder.h"
 
 #include <algorithm>
+#include <cmath>
+#include <unordered_set>
 
 #include "Component/BillboardComponent.h"
 #include "Component/DecalComponent.h"
@@ -8,31 +10,104 @@
 #include "Component/SubUVComponent.h"
 #include "Component/TextComponent.h"
 #include "Component/UUIDBillboardComponent.h"
+#include "Level/BVH.h"
+#include "Level/Level.h"
 #include "Renderer/Material.h"
 #include "Renderer/MeshData.h"
 #include "Renderer/RenderCommand.h"
 
 namespace
 {
+	struct FOBB
+	{
+		FVector Center = FVector::ZeroVector;
+		FVector AxisX = FVector::ForwardVector;
+		FVector AxisY = FVector::RightVector;
+		FVector AxisZ = FVector::UpVector;
+		FVector Extent = FVector::ZeroVector;
+	};
+
 	static uint8 ToColorChannel(float Value)
 	{
 		const float Clamped = (std::max)(0.0f, (std::min)(1.0f, Value));
 		return static_cast<uint8>(Clamped * 255.0f + 0.5f);
 	}
 
-	static FMatrix MakeDecalProjectionMatrix(const FVector& Extent)
+	static FOBB MakeDecalOBB(const UDecalComponent& Component)
 	{
-		const float SafeX = (std::max)(Extent.X, 1.0e-4f);
-		const float SafeY = (std::max)(Extent.Y, 1.0e-4f);
-		const float SafeZ = (std::max)(Extent.Z, 1.0e-4f);
+		const FVector Extent = Component.GetDecalExtent();
+		const FMatrix Transform = Component.GetWorldTransform();
 
-		return FMatrix(
-			0.0f, 1.0f / SafeY, 0.0f, 0.0f,
-			0.0f, 0.0f, 1.0f / SafeZ, 0.0f,
-			1.0f / SafeX, 0.0f, 0.0f, 0.0f,
-			0.0f, 0.0f, 0.0f, 1.0f
-		);
+		FOBB OBB;
+		OBB.AxisX = Transform.GetUnitAxis(EAxis::X);
+		OBB.AxisY = Transform.GetUnitAxis(EAxis::Y);
+		OBB.AxisZ = Transform.GetUnitAxis(EAxis::Z);
+		OBB.Extent = Extent;
+		OBB.Center = Transform.GetTranslation() + OBB.AxisX * (Extent.X * 0.5f);
+		return OBB;
 	}
+
+	static bool OverlapOnAxis(const FOBB& OBB, const FAABB& AABB, const FVector& Axis)
+	{
+		const float AxisLengthSq = Axis.SizeSquared();
+		if (AxisLengthSq <= 1.0e-8f)
+		{
+			return true;
+		}
+
+		const FVector TestAxis = Axis / std::sqrt(AxisLengthSq);
+		const FVector AABBCenter = (AABB.PMin + AABB.PMax) * 0.5f;
+		const FVector AABBExtent = (AABB.PMax - AABB.PMin) * 0.5f;
+
+		const float OBBProjectionRadius =
+			std::fabs(FVector::DotProduct(OBB.AxisX * OBB.Extent.X, TestAxis)) +
+			std::fabs(FVector::DotProduct(OBB.AxisY * OBB.Extent.Y, TestAxis)) +
+			std::fabs(FVector::DotProduct(OBB.AxisZ * OBB.Extent.Z, TestAxis));
+
+		const float AABBProjectionRadius =
+			std::fabs(AABBExtent.X * TestAxis.X) +
+			std::fabs(AABBExtent.Y * TestAxis.Y) +
+			std::fabs(AABBExtent.Z * TestAxis.Z);
+
+		const float CenterDistance = std::fabs(FVector::DotProduct(OBB.Center - AABBCenter, TestAxis));
+		return CenterDistance <= (OBBProjectionRadius + AABBProjectionRadius + 1.0e-4f);
+	}
+
+	static bool IntersectOBBAABB(const FOBB& OBB, const FAABB& AABB)
+	{
+		const FVector AABBAxes[3] = { FVector::ForwardVector, FVector::RightVector, FVector::UpVector };
+		const FVector OBBAxes[3] = { OBB.AxisX, OBB.AxisY, OBB.AxisZ };
+
+		for (const FVector& Axis : OBBAxes)
+		{
+			if (!OverlapOnAxis(OBB, AABB, Axis))
+			{
+				return false;
+			}
+		}
+
+		for (const FVector& Axis : AABBAxes)
+		{
+			if (!OverlapOnAxis(OBB, AABB, Axis))
+			{
+				return false;
+			}
+		}
+
+		for (const FVector& OBBAxis : OBBAxes)
+		{
+			for (const FVector& AABBAxis : AABBAxes)
+			{
+				if (!OverlapOnAxis(OBB, AABB, FVector::CrossProduct(OBBAxis, AABBAxis)))
+				{
+					return false;
+				}
+			}
+		}
+
+		return true;
+	}
+
 }
 
 uint32 FSceneCommandBuilder::ToColorKey(const FVector4& Color)
@@ -180,6 +255,16 @@ FMaterial* FSceneCommandBuilder::GetOrCreateDecalMaterial(
 		return BaseDecalMaterial;
 	}
 
+	ID3D11ShaderResourceView* DepthTextureSRV = BuildContext.DecalFeature->GetDepthTextureSRV();
+	if (DepthTextureSRV)
+	{
+		Material->SetPixelTextureBinding(1u, DepthTextureSRV, nullptr);
+	}
+	else
+	{
+		Material->ClearPixelTextureBinding();
+	}
+
 	FVector4 BaseColor = Component->GetTintColor();
 	BaseColor.W *= Component->GetOpacity();
 	if (!Material->SetVectorParameter("BaseColor", BaseColor))
@@ -187,10 +272,12 @@ FMaterial* FSceneCommandBuilder::GetOrCreateDecalMaterial(
 		Material->SetVectorParameter("ColorTint", BaseColor);
 	}
 
-	const FMatrix DecalViewMatrix = Component->GetWorldTransform().GetInverse();
-	const FMatrix DecalProjectionMatrix = MakeDecalProjectionMatrix(Component->GetDecalExtent());
-	const FMatrix DecalViewProjection = (DecalViewMatrix * DecalProjectionMatrix).GetTransposed();
-	Material->SetParameterData("DecalViewProjection", &DecalViewProjection, sizeof(FMatrix));
+	const FVector& Extent = Component->GetDecalExtent();
+	const FVector4 DecalExtent(Extent.X, Extent.Y, Extent.Z, 0.0f);
+	Material->SetParameterData("DecalExtent", &DecalExtent, sizeof(FVector4));
+
+	const FMatrix WorldToDecal = Component->GetWorldTransform().GetInverse().GetTransposed();
+	Material->SetParameterData("WorldToDecal", &WorldToDecal, sizeof(FMatrix));
 
 	const std::wstring& TexturePath = Component->GetTexturePath();
 	if (!TexturePath.empty())
@@ -200,12 +287,6 @@ FMaterial* FSceneCommandBuilder::GetOrCreateDecalMaterial(
 		{
 			Material->SetMaterialTexture(Texture);
 		}
-	}
-
-	ID3D11ShaderResourceView* DepthTextureSRV = BuildContext.DecalFeature->GetDepthTextureSRV();
-	if (DepthTextureSRV)
-	{
-		Material->SetPixelTextureBinding(1u, DepthTextureSRV, nullptr);
 	}
 
 	return Material;
@@ -232,6 +313,17 @@ void FSceneCommandBuilder::PruneStaleDecalMaterials(const TArray<const UDecalCom
 		if (std::find(ActiveComponents.begin(), ActiveComponents.end(), It->first) == ActiveComponents.end())
 		{
 			It = DecalMaterialsByComponent.erase(It);
+			continue;
+		}
+
+		++It;
+	}
+
+	for (auto It = DecalMeshesByComponent.begin(); It != DecalMeshesByComponent.end();)
+	{
+		if (std::find(ActiveComponents.begin(), ActiveComponents.end(), It->first) == ActiveComponents.end())
+		{
+			It = DecalMeshesByComponent.erase(It);
 			continue;
 		}
 
@@ -471,23 +563,10 @@ void FSceneCommandBuilder::BuildQueue(
 	for (const FSceneDecalPrimitive& Primitive : Packet.DecalPrimitives)
 	{
 		UDecalComponent* DecalComponent = Primitive.Component;
-		if (!DecalComponent || !BuildContext.DecalFeature)
+		if (!DecalComponent || !BuildContext.DecalFeature || !Packet.SceneLevel)
 		{
 			continue;
 		}
-
-		std::shared_ptr<FDynamicMesh> DecalMesh = std::make_shared<FDynamicMesh>();
-		if (!BuildContext.DecalFeature->BuildMesh(DecalComponent->GetDecalExtent(), *DecalMesh))
-		{
-			continue;
-		}
-
-		if (DecalMesh->Vertices.empty())
-		{
-			continue;
-		}
-
-		DecalMesh->bIsDirty = true;
 
 		FMaterial* DecalMaterial = GetOrCreateDecalMaterial(BuildContext, DecalComponent);
 		if (!DecalMaterial)
@@ -499,20 +578,65 @@ void FSceneCommandBuilder::BuildQueue(
 			continue;
 		}
 
+		const FOBB DecalOBB = MakeDecalOBB(*DecalComponent);
+		TArray<UPrimitiveComponent*> CandidatePrimitives;
+		Packet.SceneLevel->QueryPrimitivesByBounds(
+			[&DecalOBB](const FAABB& Bounds)
+			{
+				return IntersectOBBAABB(DecalOBB, Bounds);
+			},
+			CandidatePrimitives);
+
+		bool bHasReceiver = false;
+		for (UPrimitiveComponent* Candidate : CandidatePrimitives)
+		{
+			if (!Candidate || Candidate == DecalComponent || !Candidate->IsA(UStaticMeshComponent::StaticClass()))
+			{
+				continue;
+			}
+
+			UStaticMeshComponent* Receiver = static_cast<UStaticMeshComponent*>(Candidate);
+			if (Receiver->GetRenderMesh())
+			{
+				bHasReceiver = true;
+				break;
+			}
+		}
+
+		if (!bHasReceiver)
+		{
+			continue;
+		}
+
+		auto MeshIt = DecalMeshesByComponent.find(DecalComponent);
+		if (MeshIt == DecalMeshesByComponent.end())
+		{
+			std::shared_ptr<FDynamicMesh> DecalMesh = std::make_shared<FDynamicMesh>();
+			if (!DecalMesh)
+			{
+				continue;
+			}
+			MeshIt = DecalMeshesByComponent.emplace(DecalComponent, std::move(DecalMesh)).first;
+		}
+
+		FDynamicMesh* DecalMesh = MeshIt->second.get();
+		if (!DecalMesh || !BuildContext.DecalFeature->BuildMesh(DecalComponent->GetDecalExtent(), *DecalMesh))
+		{
+			continue;
+		}
+
+		DecalMesh->bIsDirty = true;
+
 		FRenderCommand Command;
-		Command.RenderMeshOwner = DecalMesh;
-		Command.RenderMesh = DecalMesh.get();
+		Command.RenderMesh = DecalMesh;
 		Command.Material = DecalMaterial;
 		Command.RenderLayer = ERenderLayer::Decal;
 		Command.SortPriority = DecalComponent->GetSortOrder();
 		Command.bDisableDepthTest = true;
 		Command.bDisableDepthWrite = true;
 		Command.WorldMatrix = DecalComponent->GetWorldTransform();
-
-		const FVector WorldPosition = Command.WorldMatrix.GetTranslation();
-		Command.TransparentSortDistanceSq = (WorldPosition - CameraPosition).SizeSquared();
-
 		OutQueue.AddCommand(Command);
+
 		ActiveDecalComponents.push_back(DecalComponent);
 	}
 
