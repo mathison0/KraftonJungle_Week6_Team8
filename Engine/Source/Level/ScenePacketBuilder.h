@@ -5,6 +5,7 @@
 #include "Level/SceneRenderPacket.h"
 
 class UPrimitiveComponent;
+class UDecalComponent;
 
 /**
  * 월드의 프리미티브를 뷰 단위 씬 패킷으로 수집하는 프런트엔드다.
