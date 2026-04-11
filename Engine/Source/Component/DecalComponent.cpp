@@ -22,9 +22,7 @@ FMatrix UDecalComponent::GetDecalToWorldMatrix() const
 
 FMatrix UDecalComponent::GetWorldToDecalMatrix() const
 {
-    FMatrix Out = GetDecalToWorldMatrix();
-    Out.Inverse();
-    return Out;
+    return GetDecalToWorldMatrix().GetInverse();
 }
 
 FBoxSphereBounds UDecalComponent::GetLocalBounds() const
