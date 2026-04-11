@@ -11,6 +11,7 @@ enum class EEngineShowFlags : uint64
 	SF_Billboard = 1 << 5,
 	SF_Text = 1 << 6,
 	SF_Grid = 1<<7,
+    SF_Decal = 1 << 8,
 	 // SF_Grid        = 1 << 3,
 	 // SF_Fog         = 1 << 4,
 };
