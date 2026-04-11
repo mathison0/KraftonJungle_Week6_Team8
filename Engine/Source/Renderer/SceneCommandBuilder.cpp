@@ -255,16 +255,6 @@ FMaterial* FSceneCommandBuilder::GetOrCreateDecalMaterial(
 		return BaseDecalMaterial;
 	}
 
-	ID3D11ShaderResourceView* DepthTextureSRV = BuildContext.DecalFeature->GetDepthTextureSRV();
-	if (DepthTextureSRV)
-	{
-		Material->SetPixelTextureBinding(1u, DepthTextureSRV, nullptr);
-	}
-	else
-	{
-		Material->ClearPixelTextureBinding();
-	}
-
 	FVector4 BaseColor = Component->GetTintColor();
 	BaseColor.W *= Component->GetOpacity();
 	if (!Material->SetVectorParameter("BaseColor", BaseColor))
@@ -619,36 +609,58 @@ void FSceneCommandBuilder::BuildQueue(
 			continue;
 		}
 
-		auto MeshIt = DecalMeshesByComponent.find(DecalComponent);
-		if (MeshIt == DecalMeshesByComponent.end())
+		bool bSubmittedReceiver = false;
+		for (UPrimitiveComponent* Candidate : CandidatePrimitives)
 		{
-			std::shared_ptr<FDynamicMesh> DecalMesh = std::make_shared<FDynamicMesh>();
-			if (!DecalMesh)
+			if (!Candidate || Candidate == DecalComponent || !Candidate->IsA(UStaticMeshComponent::StaticClass()))
 			{
 				continue;
 			}
-			MeshIt = DecalMeshesByComponent.emplace(DecalComponent, std::move(DecalMesh)).first;
+
+			UStaticMeshComponent* Receiver = static_cast<UStaticMeshComponent*>(Candidate);
+			FRenderMesh* ReceiverMesh = Receiver->GetRenderMesh();
+			if (!ReceiverMesh)
+			{
+				continue;
+			}
+
+			const int32 SectionCount = ReceiverMesh->GetNumSection();
+			if (SectionCount <= 0)
+			{
+				FRenderCommand Command;
+				Command.RenderMesh = ReceiverMesh;
+				Command.Material = DecalMaterial;
+				Command.RenderLayer = ERenderLayer::Decal;
+				Command.SortPriority = DecalComponent->GetSortOrder();
+				Command.bDisableDepthWrite = true;
+				Command.WorldMatrix = Receiver->GetWorldTransform();
+				OutQueue.AddCommand(Command);
+				bSubmittedReceiver = true;
+				continue;
+			}
+
+			for (int32 SectionIndex = 0; SectionIndex < SectionCount; ++SectionIndex)
+			{
+				const FMeshSection& Section = ReceiverMesh->Sections[SectionIndex];
+
+				FRenderCommand Command;
+				Command.RenderMesh = ReceiverMesh;
+				Command.Material = DecalMaterial;
+				Command.RenderLayer = ERenderLayer::Decal;
+				Command.SortPriority = DecalComponent->GetSortOrder();
+				Command.bDisableDepthWrite = true;
+				Command.WorldMatrix = Receiver->GetWorldTransform();
+				Command.IndexStart = Section.StartIndex;
+				Command.IndexCount = Section.IndexCount;
+				OutQueue.AddCommand(Command);
+				bSubmittedReceiver = true;
+			}
 		}
 
-		FDynamicMesh* DecalMesh = MeshIt->second.get();
-		if (!DecalMesh || !BuildContext.DecalFeature->BuildMesh(DecalComponent->GetDecalExtent(), *DecalMesh))
+		if (bSubmittedReceiver)
 		{
-			continue;
+			ActiveDecalComponents.push_back(DecalComponent);
 		}
-
-		DecalMesh->bIsDirty = true;
-
-		FRenderCommand Command;
-		Command.RenderMesh = DecalMesh;
-		Command.Material = DecalMaterial;
-		Command.RenderLayer = ERenderLayer::Decal;
-		Command.SortPriority = DecalComponent->GetSortOrder();
-		Command.bDisableDepthTest = true;
-		Command.bDisableDepthWrite = true;
-		Command.WorldMatrix = DecalComponent->GetWorldTransform();
-		OutQueue.AddCommand(Command);
-
-		ActiveDecalComponents.push_back(DecalComponent);
 	}
 
 	PruneStaleDecalMaterials(ActiveDecalComponents);

@@ -192,46 +192,7 @@ void FSceneRenderer::ExecuteCommands(FRenderer& Renderer)
 	ExecuteRenderPass(Renderer, DefaultCommandList);
 
 	SortRenderPass(DecalCommandList, ERenderLayer::Decal);
-	if (!DecalCommandList.empty() && DeviceContext)
-	{
-		const FVector4 ProjectionParams(
-			Renderer.ProjectionMatrix.M[0][2],
-			Renderer.ProjectionMatrix.M[3][2],
-			Renderer.ProjectionMatrix.M[1][0],
-			Renderer.ProjectionMatrix.M[2][1]);
-
-		ID3D11RenderTargetView* BoundRTV = nullptr;
-		ID3D11DepthStencilView* BoundDSV = nullptr;
-		DeviceContext->OMGetRenderTargets(1, &BoundRTV, &BoundDSV);
-		if (ISceneDecalFeature* DecalFeatureInterface = Renderer.GetSceneDecalFeature())
-		{
-			FDecalRenderFeature* DecalFeature = static_cast<FDecalRenderFeature*>(DecalFeatureInterface);
-			if (DecalFeature->UpdateDepthCopy(Renderer, BoundDSV))
-			{
-				ID3D11ShaderResourceView* DepthTextureSRV = DecalFeature->GetDepthTextureSRV();
-				for (FRenderCommand& Command : DecalCommandList)
-				{
-					if (Command.Material)
-					{
-						Command.Material->SetParameterData("ProjectionParams", &ProjectionParams, sizeof(FVector4));
-						if (DepthTextureSRV)
-						{
-							Command.Material->SetPixelTextureBinding(1u, DepthTextureSRV, nullptr);
-						}
-					}
-				}
-			}
-		}
-		if (BoundRTV)
-		{
-			BoundRTV->Release();
-		}
-		if (BoundDSV)
-		{
-			BoundDSV->Release();
-		}
-		ExecuteRenderPass(Renderer, DecalCommandList);
-	}
+	ExecuteRenderPass(Renderer, DecalCommandList);
 
 	SortRenderPass(TransparentCommandList, ERenderLayer::Transparent);
 	ExecuteRenderPass(Renderer, TransparentCommandList);

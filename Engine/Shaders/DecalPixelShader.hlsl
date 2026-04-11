@@ -1,14 +1,12 @@
 #include "ShaderCommon.hlsli"
 
 Texture2D DecalTexture : register(t0);
-Texture2D DepthTexture : register(t1);
 SamplerState DecalSampler : register(s0);
 
 cbuffer DecalMaterialData : register(b2)
 {
 	float4 BaseColor;
 	float4 DecalExtent;
-	float4 ProjectionParams;
 };
 
 cbuffer DecalTransformData : register(b3)
@@ -22,36 +20,12 @@ cbuffer DecalTransformData : register(b3)
 struct DECAL_VS_OUTPUT
 {
 	float4 Position : SV_POSITION;
+	float3 WorldPosition : TEXCOORD0;
 };
 
 float4 main(DECAL_VS_OUTPUT Input) : SV_TARGET
 {
-	int3 DepthSampleCoord = int3(int2(Input.Position.xy), 0);
-	float SceneDepth = DepthTexture.Load(DepthSampleCoord).r;
-	if (SceneDepth >= 0.9999f)
-	{
-		discard;
-	}
-
-	float DepthWidth = 1.0f;
-	float DepthHeight = 1.0f;
-	DepthTexture.GetDimensions(DepthWidth, DepthHeight);
-
-	float2 ScreenUV = Input.Position.xy / float2(DepthWidth, DepthHeight);
-	float2 NDCXY = float2(ScreenUV.x * 2.0f - 1.0f, 1.0f - ScreenUV.y * 2.0f);
-
-	float ProjectionDepthScale = ProjectionParams.x;
-	float ProjectionDepthBias = ProjectionParams.y;
-	float ProjectionRightScale = ProjectionParams.z;
-	float ProjectionUpScale = ProjectionParams.w;
-
-	float ViewForward = ProjectionDepthBias / max(SceneDepth - ProjectionDepthScale, -1.0e-6f);
-	float ViewRight = NDCXY.x * ViewForward / ProjectionRightScale;
-	float ViewUp = NDCXY.y * ViewForward / ProjectionUpScale;
-	float4 ViewPosition = float4(ViewForward, ViewRight, ViewUp, 1.0f);
-	float4 WorldPosition = mul(ViewPosition, InvView);
-
-	float3 DeltaToReceiver = WorldPosition.xyz - DecalOrigin.xyz;
+	float3 DeltaToReceiver = Input.WorldPosition.xyz - DecalOrigin.xyz;
 	float AxisXLengthSq = dot(DecalAxisX.xyz, DecalAxisX.xyz);
 	float AxisYLengthSq = dot(DecalAxisY.xyz, DecalAxisY.xyz);
 	float AxisZLengthSq = dot(DecalAxisZ.xyz, DecalAxisZ.xyz);
@@ -72,5 +46,8 @@ float4 main(DECAL_VS_OUTPUT Input) : SV_TARGET
 	ProjectedUV.x = DecalLocalPosition.y / (DecalExtent.y * 2.0f) + 0.5f;
 	ProjectedUV.y = 0.5f - DecalLocalPosition.z / (DecalExtent.z * 2.0f);
 
-	return float4(ProjectedUV.x, ProjectedUV.y, 0.0f, 1.0f);
+	float4 Sampled = DecalTexture.Sample(DecalSampler, ProjectedUV);
+	float4 FinalColor = Sampled * BaseColor;
+	clip(FinalColor.a - 0.01f);
+	return FinalColor;
 }

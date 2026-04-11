@@ -245,8 +245,9 @@ bool FDecalRenderFeature::InitializeBaseMaterial(FRenderer& Renderer)
 	BaseMaterial->SetRasterizerState(Renderer.GetRenderStateManager()->GetOrCreateRasterizerState(RasterizerOption));
 
 	FDepthStencilStateOption DepthOption;
-	DepthOption.DepthEnable = false;
+	DepthOption.DepthEnable = true;
 	DepthOption.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ZERO;
+	DepthOption.DepthFunc = D3D11_COMPARISON_LESS_EQUAL;
 	BaseMaterial->SetDepthStencilOption(DepthOption);
 	BaseMaterial->SetDepthStencilState(Renderer.GetRenderStateManager()->GetOrCreateDepthStencilState(DepthOption));
 
@@ -261,12 +262,11 @@ bool FDecalRenderFeature::InitializeBaseMaterial(FRenderer& Renderer)
 	BaseMaterial->SetBlendOption(BlendOption);
 	BaseMaterial->SetBlendState(Renderer.GetRenderStateManager()->GetOrCreateBlendState(BlendOption));
 
-	const int32 SlotIndex = BaseMaterial->CreateConstantBuffer(Device, 48);
+	const int32 SlotIndex = BaseMaterial->CreateConstantBuffer(Device, 32);
 	if (SlotIndex >= 0)
 	{
 		BaseMaterial->RegisterParameter("BaseColor", SlotIndex, 0, sizeof(FVector4));
 		BaseMaterial->RegisterParameter("DecalExtent", SlotIndex, 16, sizeof(FVector4));
-		BaseMaterial->RegisterParameter("ProjectionParams", SlotIndex, 32, sizeof(FVector4));
 	}
 
 	const int32 MatrixSlotIndex = BaseMaterial->CreateConstantBuffer(Device, sizeof(FVector4) * 4);
@@ -279,10 +279,8 @@ bool FDecalRenderFeature::InitializeBaseMaterial(FRenderer& Renderer)
 	}
 	const FVector4 DefaultColor(1.0f, 1.0f, 1.0f, 1.0f);
 	const FVector4 DefaultExtent(1.0f, 0.5f, 0.5f, 0.0f);
-	const FVector4 DefaultProjectionParams(1.0f, -1.0f, 1.0f, 1.0f);
 	BaseMaterial->SetParameterData("BaseColor", &DefaultColor, sizeof(FVector4));
 	BaseMaterial->SetParameterData("DecalExtent", &DefaultExtent, sizeof(FVector4));
-	BaseMaterial->SetParameterData("ProjectionParams", &DefaultProjectionParams, sizeof(FVector4));
 
 	return true;
 }
