@@ -374,3 +374,42 @@ void BVH::VisitRayRecursive(const BuildNode* Node, const Ray& InRay, float& InOu
 		VisitRayRecursive(Node->Right, InRay, InOutMaxDistance, Visitor);
 	}
 }
+
+void BVH::QueryAABB(const FAABB& Bounds, TArray<UPrimitiveComponent*>& OutPrimitives) const
+{
+    if (!Root)
+    {
+        return;
+    }
+
+    QueryAABBRecursive(Root, Bounds, OutPrimitives);
+}
+
+void BVH::QueryAABBRecursive(const BuildNode* Node, const FAABB& Bounds, TArray<UPrimitiveComponent*>& OutPrimitives) const
+{
+    if (!Node)
+    {
+        return;
+    }
+
+    if (!Node->Bounds.Overlaps(Bounds))
+    {
+        return;
+    }
+
+    if (Node->IsLeaf())
+    {
+        for (int32 Index = 0; Index < Node->PrimCount; ++Index)
+        {
+            const FPrimRef& PrimRef = PrimitiveRefs[Node->FirstPrimOffset + Index];
+            if (PrimRef.Primitive && PrimRef.Bounds.Overlaps(Bounds))
+            {
+                OutPrimitives.push_back(PrimRef.Primitive);
+            }
+        }
+        return;
+    }
+
+    QueryAABBRecursive(Node->Left, Bounds, OutPrimitives);
+    QueryAABBRecursive(Node->Right, Bounds, OutPrimitives);
+}

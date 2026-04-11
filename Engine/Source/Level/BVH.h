@@ -147,6 +147,13 @@ struct FAABB
 		OutTFar = tmax;
 		return true;
 	}
+
+    bool Overlaps(const FAABB& Other) const
+    {
+        return !(PMax.X < Other.PMin.X || PMin.X > Other.PMax.X ||
+                PMax.Y < Other.PMin.Y || PMin.Y > Other.PMax.Y ||
+                PMax.Z < Other.PMin.Z || PMin.Z > Other.PMax.Z);
+    }
 };
 
 struct FPrimRef
@@ -188,6 +195,7 @@ public:
 	void Build(const TArray<UPrimitiveComponent*>& InPrimitives);
 	void QueryFrustum(const FFrustum& Frustum, TArray<UPrimitiveComponent*>& OutPrimitives) const;
 	void QueryRay(const Ray& InRay, float MaxDistance, TArray<UPrimitiveComponent*>& OutPrimitives) const;
+    void QueryAABB(const FAABB& Bounds, TArray<UPrimitiveComponent*>& OutPrimitives) const;
 	void VisitRay(const Ray& InRay, float& InOutMaxDistance, const FRayHitVisitor& Visitor) const;
 	void VisitNodes(const FBVHNodeVisitor& Visitor) const;
 	void VisitNodesForPrimitive(UPrimitiveComponent* Target, const FBVHNodeVisitor& Visitor) const;
@@ -203,6 +211,7 @@ private:
 	void DestroyNode(BuildNode* Node);
 	BuildNode* BuildRecursive(int32 Start, int32 End, int32 Depth = 0);
 	void QueryFrustumRecursive(const BuildNode* Node, const FFrustum& Frustum, TArray<UPrimitiveComponent*>& OutPrimitives) const;
+    void QueryAABBRecursive(const BuildNode* Node, const FAABB& Bounds, TArray<UPrimitiveComponent*>& OutPrimitives) const;
 	void VisitRayRecursive(const BuildNode* Node, const Ray& InRay, float& InOutMaxDistance, const FRayHitVisitor& Visitor) const;
 	void VisitNodesRecursive(const BuildNode* Node, int32 Depth, const FBVHNodeVisitor& Visitor) const;
 	bool VisitNodesForPrimitiveRecursive(const BuildNode* Node, int32 Depth, UPrimitiveComponent* Target, const FBVHNodeVisitor& Visitor) const;
