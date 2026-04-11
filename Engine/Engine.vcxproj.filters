@@ -992,4 +992,8 @@
   <ItemGroup>
     <None Include="packages.config" />
   </ItemGroup>
+  <ItemGroup>
+    <FxCompile Include="Shaders\DecalPixelShader.hlsl" />
+    <FxCompile Include="Shaders\DecalVertexShader.hlsl" />
+  </ItemGroup>
 </Project>

@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include "CoreMinimal.h"
 #include <d3d11.h>
@@ -111,6 +111,12 @@ public:
 			DepthStencilView = nullptr;
 		}
 
+		if (DepthShaderResourceView)
+		{
+			DepthShaderResourceView->Release();
+			DepthShaderResourceView = nullptr;
+		}
+
 		SwapChain->ResizeBuffers(0, Width, Height, DXGI_FORMAT_UNKNOWN, 0);
 		if (CreateRenderTargetAndDepthStencil(Width, Height))
 		{
@@ -122,6 +128,11 @@ public:
 	// 디바이스가 소유한 스왑체인과 백버퍼 자원을 모두 해제한다.
 	void Release()
 	{
+		if (DepthShaderResourceView)
+		{
+			DepthShaderResourceView->Release();
+			DepthShaderResourceView = nullptr;
+		}
 		if (DepthStencilView)
 		{
 			DepthStencilView->Release();
@@ -240,10 +251,10 @@ private:
 		DepthDesc.Height = static_cast<UINT>(Height);
 		DepthDesc.MipLevels = 1;
 		DepthDesc.ArraySize = 1;
-		DepthDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
+		DepthDesc.Format = DXGI_FORMAT_R24G8_TYPELESS;
 		DepthDesc.SampleDesc.Count = 1;
 		DepthDesc.Usage = D3D11_USAGE_DEFAULT;
-		DepthDesc.BindFlags = D3D11_BIND_DEPTH_STENCIL;
+		DepthDesc.BindFlags = D3D11_BIND_DEPTH_STENCIL | D3D11_BIND_SHADER_RESOURCE;
 
 		ID3D11Texture2D* DepthTexture = nullptr;
 		Hr = Device->CreateTexture2D(&DepthDesc, nullptr, &DepthTexture);
@@ -252,7 +263,22 @@ private:
 			return false;
 		}
 
-		Hr = Device->CreateDepthStencilView(DepthTexture, nullptr, &DepthStencilView);
+		D3D11_DEPTH_STENCIL_VIEW_DESC DepthViewDesc = {};
+		DepthViewDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
+		DepthViewDesc.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;
+		Hr = Device->CreateDepthStencilView(DepthTexture, &DepthViewDesc, &DepthStencilView);
+		if (FAILED(Hr))
+		{
+			DepthTexture->Release();
+			return false;
+		}
+
+		D3D11_SHADER_RESOURCE_VIEW_DESC DepthSRVDesc = {};
+		DepthSRVDesc.Format = DXGI_FORMAT_R24_UNORM_X8_TYPELESS;
+		DepthSRVDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+		DepthSRVDesc.Texture2D.MostDetailedMip = 0;
+		DepthSRVDesc.Texture2D.MipLevels = 1;
+		Hr = Device->CreateShaderResourceView(DepthTexture, &DepthSRVDesc, &DepthShaderResourceView);
 		DepthTexture->Release();
 		return SUCCEEDED(Hr);
 	}
@@ -264,8 +290,8 @@ private:
 	IDXGISwapChain* SwapChain = nullptr;
 	ID3D11RenderTargetView* RenderTargetView = nullptr;
 	ID3D11DepthStencilView* DepthStencilView = nullptr;
+	ID3D11ShaderResourceView* DepthShaderResourceView = nullptr;
 	D3D11_VIEWPORT Viewport = {};
 	bool bSwapChainOccluded = false;
 	bool bVSyncEnabled = false;
 };
-

@@ -76,6 +76,7 @@ public:
 	FMaterial* GetBaseMaterial() const override;
 	bool BuildMesh(const FVector& Extent, FRenderMesh& OutMesh) const override;
 	std::shared_ptr<FMaterialTexture> GetOrLoadTexture(const std::wstring& Path) override;
+	ID3D11ShaderResourceView* GetDepthTextureSRV() const override;
 
 	const FDecalPassStats& GetStats() const { return Stats; }
 	const FDecalScreenClusterGrid& GetClusterGrid() const { return ClusterGrid; }
@@ -87,6 +88,7 @@ private:
 private:
 	ID3D11Device* Device = nullptr;
 	ID3D11DeviceContext* DeviceContext = nullptr;
+	ID3D11ShaderResourceView* DepthTextureSRV = nullptr;
 	std::shared_ptr<FMaterial> BaseMaterial;
 	TMap<std::wstring, std::shared_ptr<FMaterialTexture>> TextureCache;
 	FDecalPassStats Stats;

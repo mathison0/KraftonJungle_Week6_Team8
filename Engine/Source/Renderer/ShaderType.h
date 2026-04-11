@@ -6,6 +6,8 @@ struct FFrameConstantBuffer
 {
 	FMatrix View;
 	FMatrix Projection;
+	FMatrix InvView;
+	FMatrix InvProjection;
 
 	float Time;
 	float DeltaTime;

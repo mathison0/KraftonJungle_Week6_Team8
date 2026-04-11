@@ -3,6 +3,8 @@
 #include "CoreMinimal.h"
 #include "Renderer/RenderType.h"
 
+#include <d3d11.h>
+
 class FMaterial;
 struct FMaterialTexture;
 struct FRenderMesh;
@@ -47,5 +49,6 @@ public:
 	virtual FMaterial* GetBaseMaterial() const = 0;
 	virtual bool BuildMesh(const FVector& Extent, FRenderMesh& OutMesh) const = 0;
 	virtual std::shared_ptr<FMaterialTexture> GetOrLoadTexture(const std::wstring& Path) = 0;
+	virtual ID3D11ShaderResourceView* GetDepthTextureSRV() const = 0;
 
 };

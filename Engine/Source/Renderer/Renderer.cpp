@@ -394,6 +394,8 @@ void FRenderer::UpdateFrameConstantBuffer()
 	FFrameConstantBuffer CBData;
 	CBData.View = ViewMatrix.GetTransposed();
 	CBData.Projection = ProjectionMatrix.GetTransposed();
+	CBData.InvView = ViewMatrix.GetInverse().GetTransposed();
+	CBData.InvProjection = ProjectionMatrix.GetInverse().GetTransposed();
 	CBData.Time = static_cast<float>(GEngine->GetTimer().GetTotalTime());
 	CBData.DeltaTime = GEngine->GetDeltaTime();
 	D3D11_MAPPED_SUBRESOURCE Mapped;

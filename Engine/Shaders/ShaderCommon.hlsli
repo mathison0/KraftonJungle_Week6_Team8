@@ -6,6 +6,8 @@ cbuffer FrameData : register(b0)
 {
 	float4x4 View;
 	float4x4 Projection;
+	float4x4 InvView;
+	float4x4 InvProjection;
 	float Time;
 	float DeltaTime;
 	float2 Framepadding;

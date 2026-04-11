@@ -3,9 +3,11 @@
 #include <WICTextureLoader.h>
 
 #include "Level/SceneRenderPacket.h"
+#include "Core/Paths.h"
 #include "Renderer/Material.h"
 #include "Renderer/RenderMesh.h"
 #include "Renderer/Renderer.h"
+#include "Renderer/ShaderMap.h"
 
 #include <algorithm>
 
@@ -38,6 +40,7 @@ void FDecalRenderFeature::Release()
 	TextureCache.clear();
 	Device = nullptr;
 	DeviceContext = nullptr;
+	DepthTextureSRV = nullptr;
 	ResetPreparedState();
 	bInitialized = false;
 }
@@ -59,6 +62,8 @@ bool FDecalRenderFeature::PrepareFrame(
 	{
 		return false;
 	}
+
+	DepthTextureSRV = Renderer.GetDepthShaderResourceView();
 
 	Stats.TotalDecalCount = static_cast<int32>(Packet.DecalPrimitives.size());
 	Stats.VisibleDecalCount = Stats.TotalDecalCount;
@@ -88,6 +93,11 @@ bool FDecalRenderFeature::Render(FRenderer& Renderer)
 FMaterial* FDecalRenderFeature::GetBaseMaterial() const
 {
 	return BaseMaterial.get();
+}
+
+ID3D11ShaderResourceView* FDecalRenderFeature::GetDepthTextureSRV() const
+{
+	return DepthTextureSRV;
 }
 
 std::shared_ptr<FMaterialTexture> FDecalRenderFeature::GetOrLoadTexture(const std::wstring& Path)
@@ -204,19 +214,65 @@ bool FDecalRenderFeature::InitializeBaseMaterial(FRenderer& Renderer)
 		return true;
 	}
 
-	FMaterial* DefaultMaterial = Renderer.GetDefaultTextureMaterial();
-	if (!DefaultMaterial)
+	const std::wstring ShaderDir = FPaths::ShaderDir();
+	const std::wstring VSPath = ShaderDir + L"DecalVertexShader.hlsl";
+	const std::wstring PSPath = ShaderDir + L"DecalPixelShader.hlsl";
+
+	auto VS = FShaderMap::Get().GetOrCreateVertexShader(Device, VSPath.c_str());
+	auto PS = FShaderMap::Get().GetOrCreatePixelShader(Device, PSPath.c_str());
+	if (!VS || !PS)
 	{
 		return false;
 	}
 
-	BaseMaterial = DefaultMaterial->CreateDynamicMaterial();
+	BaseMaterial = std::make_shared<FMaterial>();
 	if (!BaseMaterial)
 	{
 		return false;
 	}
 
 	BaseMaterial->SetOriginName("M_DecalBase");
+
+	BaseMaterial->SetVertexShader(VS);
+	BaseMaterial->SetPixelShader(PS);
+
+	FRasterizerStateOption RasterizerOption;
+	RasterizerOption.FillMode = D3D11_FILL_SOLID;
+	RasterizerOption.CullMode = D3D11_CULL_FRONT;
+	BaseMaterial->SetRasterizerOption(RasterizerOption);
+	BaseMaterial->SetRasterizerState(Renderer.GetRenderStateManager()->GetOrCreateRasterizerState(RasterizerOption));
+
+	FDepthStencilStateOption DepthOption;
+	DepthOption.DepthEnable = false;
+	DepthOption.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ZERO;
+	BaseMaterial->SetDepthStencilOption(DepthOption);
+	BaseMaterial->SetDepthStencilState(Renderer.GetRenderStateManager()->GetOrCreateDepthStencilState(DepthOption));
+
+	FBlendStateOption BlendOption;
+	BlendOption.BlendEnable = true;
+	BlendOption.SrcBlend = D3D11_BLEND_SRC_ALPHA;
+	BlendOption.DestBlend = D3D11_BLEND_INV_SRC_ALPHA;
+	BlendOption.BlendOp = D3D11_BLEND_OP_ADD;
+	BlendOption.SrcBlendAlpha = D3D11_BLEND_ONE;
+	BlendOption.DestBlendAlpha = D3D11_BLEND_INV_SRC_ALPHA;
+	BlendOption.BlendOpAlpha = D3D11_BLEND_OP_ADD;
+	BaseMaterial->SetBlendOption(BlendOption);
+	BaseMaterial->SetBlendState(Renderer.GetRenderStateManager()->GetOrCreateBlendState(BlendOption));
+
+	const int32 SlotIndex = BaseMaterial->CreateConstantBuffer(Device, 32);
+	if (SlotIndex >= 0)
+	{
+		BaseMaterial->RegisterParameter("BaseColor", SlotIndex, 0, sizeof(FVector4));
+	}
+
+	const int32 MatrixSlotIndex = BaseMaterial->CreateConstantBuffer(Device, sizeof(FMatrix));
+	if (MatrixSlotIndex >= 0)
+	{
+		BaseMaterial->RegisterParameter("DecalViewProjection", MatrixSlotIndex, 0, sizeof(FMatrix));
+	}
+	const FVector4 DefaultColor(1.0f, 1.0f, 1.0f, 1.0f);
+	BaseMaterial->SetParameterData("BaseColor", &DefaultColor, sizeof(FVector4));
+
 	return true;
 }
 

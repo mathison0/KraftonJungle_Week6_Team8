@@ -19,6 +19,20 @@ namespace
 		const float Clamped = (std::max)(0.0f, (std::min)(1.0f, Value));
 		return static_cast<uint8>(Clamped * 255.0f + 0.5f);
 	}
+
+	static FMatrix MakeDecalProjectionMatrix(const FVector& Extent)
+	{
+		const float SafeX = (std::max)(Extent.X, 1.0e-4f);
+		const float SafeY = (std::max)(Extent.Y, 1.0e-4f);
+		const float SafeZ = (std::max)(Extent.Z, 1.0e-4f);
+
+		return FMatrix(
+			0.0f, 1.0f / SafeY, 0.0f, 0.0f,
+			0.0f, 0.0f, 1.0f / SafeZ, 0.0f,
+			1.0f / SafeX, 0.0f, 0.0f, 0.0f,
+			0.0f, 0.0f, 0.0f, 1.0f
+		);
+	}
 }
 
 uint32 FSceneCommandBuilder::ToColorKey(const FVector4& Color)
@@ -173,6 +187,11 @@ FMaterial* FSceneCommandBuilder::GetOrCreateDecalMaterial(
 		Material->SetVectorParameter("ColorTint", BaseColor);
 	}
 
+	const FMatrix DecalViewMatrix = Component->GetWorldTransform().GetInverse();
+	const FMatrix DecalProjectionMatrix = MakeDecalProjectionMatrix(Component->GetDecalExtent());
+	const FMatrix DecalViewProjection = (DecalViewMatrix * DecalProjectionMatrix).GetTransposed();
+	Material->SetParameterData("DecalViewProjection", &DecalViewProjection, sizeof(FMatrix));
+
 	const std::wstring& TexturePath = Component->GetTexturePath();
 	if (!TexturePath.empty())
 	{
@@ -181,6 +200,12 @@ FMaterial* FSceneCommandBuilder::GetOrCreateDecalMaterial(
 		{
 			Material->SetMaterialTexture(Texture);
 		}
+	}
+
+	ID3D11ShaderResourceView* DepthTextureSRV = BuildContext.DecalFeature->GetDepthTextureSRV();
+	if (DepthTextureSRV)
+	{
+		Material->SetPixelTextureBinding(1u, DepthTextureSRV, nullptr);
 	}
 
 	return Material;
@@ -480,8 +505,8 @@ void FSceneCommandBuilder::BuildQueue(
 		Command.Material = DecalMaterial;
 		Command.RenderLayer = ERenderLayer::Decal;
 		Command.SortPriority = DecalComponent->GetSortOrder();
+		Command.bDisableDepthTest = true;
 		Command.bDisableDepthWrite = true;
-		Command.bDisableCulling = true;
 		Command.WorldMatrix = DecalComponent->GetWorldTransform();
 
 		const FVector WorldPosition = Command.WorldMatrix.GetTranslation();

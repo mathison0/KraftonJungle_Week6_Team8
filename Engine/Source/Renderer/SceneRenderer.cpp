@@ -186,12 +186,41 @@ void FSceneRenderer::ExecuteCommands(FRenderer& Renderer)
 {
 	Renderer.SetConstantBuffers();
 	Renderer.UpdateFrameConstantBuffer();
+	ID3D11DeviceContext* DeviceContext = Renderer.GetDeviceContext();
 
 	SortRenderPass(DefaultCommandList, ERenderLayer::Default);
 	ExecuteRenderPass(Renderer, DefaultCommandList);
 
 	SortRenderPass(DecalCommandList, ERenderLayer::Decal);
-	ExecuteRenderPass(Renderer, DecalCommandList);
+	if (!DecalCommandList.empty() && DeviceContext)
+	{
+		ID3D11RenderTargetView* BoundRTV = nullptr;
+		ID3D11DepthStencilView* BoundDSV = nullptr;
+		DeviceContext->OMGetRenderTargets(1, &BoundRTV, &BoundDSV);
+		if (BoundRTV)
+		{
+			DeviceContext->OMSetRenderTargets(1, &BoundRTV, nullptr);
+		}
+
+		ExecuteRenderPass(Renderer, DecalCommandList);
+
+		ID3D11ShaderResourceView* NullSRV = nullptr;
+		DeviceContext->PSSetShaderResources(1, 1, &NullSRV);
+
+		if (BoundRTV)
+		{
+			DeviceContext->OMSetRenderTargets(1, &BoundRTV, BoundDSV);
+		}
+
+		if (BoundRTV)
+		{
+			BoundRTV->Release();
+		}
+		if (BoundDSV)
+		{
+			BoundDSV->Release();
+		}
+	}
 
 	SortRenderPass(TransparentCommandList, ERenderLayer::Transparent);
 	ExecuteRenderPass(Renderer, TransparentCommandList);

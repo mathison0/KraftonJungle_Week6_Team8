@@ -156,6 +156,7 @@ public:
 	ID3D11RenderTargetView* GetRenderTargetView() const { return RenderDevice.GetRenderTargetView(); }
 	// 현재 백버퍼 DSV 접근자다.
 	ID3D11DepthStencilView* GetDepthStencilView() const;
+	ID3D11ShaderResourceView* GetDepthShaderResourceView() const { return RenderDevice.GetDepthShaderResourceView(); }
 	// 스왑체인 접근자다.
 	IDXGISwapChain* GetSwapChain() const { return RenderDevice.GetSwapChain(); }
 	// 렌더 윈도우 핸들을 반환한다.
