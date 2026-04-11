@@ -28,14 +28,14 @@ public:
 	void SetTexturePath(const std::wstring& InPath) { TexturePath = InPath; }
 	const std::wstring& GetTexturePath() const { return TexturePath; }
 
-	/*void SetHiddenInGame(bool bInHidden) { bHiddenInGame = bInHidden; }
-	bool IsHiddenInGame() const { return bHiddenInGame; }*/
+	void SetHiddenInGame(bool bInHidden) { bHiddenInGame = bInHidden; }
+	bool IsHiddenInGame() const { return bHiddenInGame; }
 
 private:
 	FVector DecalExtent = FVector(1.0f, 0.5f, 0.5f); // 데칼 볼륨 크기
 	FVector4 TintColor = FVector4(1.0f, 1.0f, 1.0f, 1.0f); // 데칼 최종 색상 곱
 	float Opacity = 1.0f; // 투명도
 	int32 SortOrder = 0; // 데칼끼리 겹칠 때 우선순위
-	// bool bHiddenInGame = false; // 게임 중에 렌더링하지 않을지 여부
 	std::wstring TexturePath; // 데칼 텍스쳐 경로
+	bool bHiddenInGame = false;
 };

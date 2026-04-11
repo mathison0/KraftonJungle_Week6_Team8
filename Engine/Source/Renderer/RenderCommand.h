@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include "CoreMinimal.h"
 
@@ -10,6 +10,7 @@ class FMaterial;
 enum class ERenderLayer
 {
 	Default,
+	Decal,
 	Overlay,
 	Transparent,
 };
@@ -31,6 +32,7 @@ struct ENGINE_API FRenderCommand
 	FMaterial* Material = nullptr;
 	uint64 SortKey = 0;
 	uint64 SubmissionOrder = 0;
+	int32 SortPriority = 0;
 	float TransparentSortDistanceSq = 0.0f;
 
 	uint32 IndexStart = 0;
@@ -55,6 +57,8 @@ struct ENGINE_API FRenderCommandQueue
 {
 	// 기본 씬 패스에서 정렬 후 실행할 일반 메시 커맨드다.
 	TArray<FRenderCommand> DefaultCommands;
+	// 일반 불투명 패스 뒤에서 실행할 데칼 전용 커맨드 버킷이다.
+	TArray<FRenderCommand> DecalCommands;
 	// 일반 씬 뒤에 상대적으로 적은 정렬 비용으로 실행할 오버레이 커맨드다.
 	TArray<FRenderCommand> OverlayCommands;
 	// 투명체처럼 별도 정렬 정책이 필요한 커맨드 버킷이다.
@@ -68,6 +72,7 @@ struct ENGINE_API FRenderCommandQueue
 	void Reserve(size_t Count)
 	{
 		DefaultCommands.reserve(Count);
+		DecalCommands.reserve((Count / 4) + 1);
 		OverlayCommands.reserve((Count / 4) + 1);
 		TransparentCommands.reserve((Count / 4) + 1);
 	}
@@ -77,6 +82,10 @@ struct ENGINE_API FRenderCommandQueue
 	{
 		switch (Cmd.RenderLayer)
 		{
+		case ERenderLayer::Decal:
+			DecalCommands.push_back(Cmd);
+			break;
+
 		case ERenderLayer::Overlay:
 			OverlayCommands.push_back(Cmd);
 			break;
@@ -96,6 +105,7 @@ struct ENGINE_API FRenderCommandQueue
 	void Append(const FRenderCommandQueue& Other)
 	{
 		DefaultCommands.insert(DefaultCommands.end(), Other.DefaultCommands.begin(), Other.DefaultCommands.end());
+		DecalCommands.insert(DecalCommands.end(), Other.DecalCommands.begin(), Other.DecalCommands.end());
 		OverlayCommands.insert(OverlayCommands.end(), Other.OverlayCommands.begin(), Other.OverlayCommands.end());
 		TransparentCommands.insert(TransparentCommands.end(), Other.TransparentCommands.begin(), Other.TransparentCommands.end());
 	}
@@ -103,19 +113,20 @@ struct ENGINE_API FRenderCommandQueue
 	// 큐에 들어 있는 전체 커맨드 수를 반환한다.
 	size_t GetTotalCommandCount() const
 	{
-		return DefaultCommands.size() + OverlayCommands.size() + TransparentCommands.size();
+		return DefaultCommands.size() + DecalCommands.size() + OverlayCommands.size() + TransparentCommands.size();
 	}
 
 	// 어떤 버킷에도 커맨드가 없으면 true를 반환한다.
 	bool IsEmpty() const
 	{
-		return DefaultCommands.empty() && OverlayCommands.empty() && TransparentCommands.empty();
+		return DefaultCommands.empty() && DecalCommands.empty() && OverlayCommands.empty() && TransparentCommands.empty();
 	}
 
 	// 모든 버킷을 비우고 카메라 행렬은 유지하지 않는다.
 	void Clear()
 	{
 		DefaultCommands.clear();
+		DecalCommands.clear();
 		OverlayCommands.clear();
 		TransparentCommands.clear();
 	}

@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include "CoreMinimal.h"
 #include "Level/SceneRenderPacket.h"
@@ -51,6 +51,7 @@ private:
 		FRenderer& Renderer,
 		const FSceneRenderPacket& Packet,
 		const FSceneViewRenderRequest& SceneView,
+		const D3D11_VIEWPORT& Viewport,
 		FRenderCommandQueue& OutQueue);
 	// 내부 실행 버킷 하나에 커맨드 하나를 추가하고 정렬 키를 계산한다.
 	void AddCommand(FRenderer& Renderer, TArray<FRenderCommand>& TargetList, const FRenderCommand& Command);
@@ -71,6 +72,7 @@ private:
 private:
 	FSceneCommandBuilder SceneCommandBuilder;
 	TArray<FRenderCommand> DefaultCommandList;
+	TArray<FRenderCommand> DecalCommandList;
 	TArray<FRenderCommand> OverlayCommandList;
 	TArray<FRenderCommand> TransparentCommandList;
 	size_t PrevCommandCount = 0;

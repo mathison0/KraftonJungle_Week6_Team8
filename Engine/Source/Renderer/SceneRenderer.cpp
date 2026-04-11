@@ -11,9 +11,11 @@ void FSceneRenderer::BeginFrame()
 	PrevCommandCount = (std::max)(PrevCommandCount, CurrentFramePeakCommandCount);
 	CurrentFramePeakCommandCount = 0;
 	DefaultCommandList.clear();
+	DecalCommandList.clear();
 	OverlayCommandList.clear();
 	TransparentCommandList.clear();
 	DefaultCommandList.reserve(PrevCommandCount);
+	DecalCommandList.reserve((PrevCommandCount / 4) + 1);
 	OverlayCommandList.reserve((PrevCommandCount / 4) + 1);
 	TransparentCommandList.reserve((PrevCommandCount / 4) + 1);
 	NextSubmissionOrder = 0;
@@ -28,6 +30,7 @@ void FSceneRenderer::BuildQueue(
 	FRenderer& Renderer,
 	const FSceneRenderPacket& Packet,
 	const FSceneViewRenderRequest& SceneView,
+	const D3D11_VIEWPORT& Viewport,
 	FRenderCommandQueue& OutQueue)
 {
 	OutQueue.Clear();
@@ -42,6 +45,12 @@ void FSceneRenderer::BuildQueue(
 	BuildContext.BillboardFeature = Renderer.GetSceneBillboardFeature();
 	BuildContext.DecalFeature = Renderer.GetSceneDecalFeature();
 	BuildContext.TotalTimeSeconds = SceneView.TotalTimeSeconds;
+
+	if (BuildContext.DecalFeature)
+	{
+		FDecalRenderFeature* DecalFeature = static_cast<FDecalRenderFeature*>(BuildContext.DecalFeature);
+		DecalFeature->PrepareFrame(Renderer, Packet, SceneView, Viewport);
+	}
 
 	SceneCommandBuilder.BuildQueue(BuildContext, Packet, SceneView.CameraPosition, OutQueue);
 }
@@ -62,16 +71,19 @@ void FSceneRenderer::AddCommand(FRenderer& Renderer, TArray<FRenderCommand>& Tar
 void FSceneRenderer::ClearCommandLists()
 {
 	const size_t PrevDefaultCount = DefaultCommandList.size();
+	const size_t PrevDecalCount = DecalCommandList.size();
 	const size_t PrevOverlayCount = OverlayCommandList.size();
 	const size_t PrevTransparentCount = TransparentCommandList.size();
-	const size_t ExecutedCommandCount = PrevDefaultCount + PrevOverlayCount + PrevTransparentCount;
+	const size_t ExecutedCommandCount = PrevDefaultCount + PrevDecalCount + PrevOverlayCount + PrevTransparentCount;
 	CurrentFramePeakCommandCount = (std::max)(CurrentFramePeakCommandCount, ExecutedCommandCount);
 
 	DefaultCommandList.clear();
+	DecalCommandList.clear();
 	OverlayCommandList.clear();
 	TransparentCommandList.clear();
 
 	DefaultCommandList.reserve(PrevDefaultCount);
+	DecalCommandList.reserve(PrevDecalCount);
 	OverlayCommandList.reserve(PrevOverlayCount);
 	TransparentCommandList.reserve(PrevTransparentCount);
 	NextSubmissionOrder = 0;
@@ -103,6 +115,7 @@ void FSceneRenderer::SubmitCommands(FRenderer& Renderer, const FRenderCommandQue
 	};
 
 	SubmitBucket(Queue.DefaultCommands, DefaultCommandList);
+	SubmitBucket(Queue.DecalCommands, DecalCommandList);
 	SubmitBucket(Queue.OverlayCommands, OverlayCommandList);
 	SubmitBucket(Queue.TransparentCommands, TransparentCommandList);
 }
@@ -122,6 +135,24 @@ void FSceneRenderer::SortRenderPass(TArray<FRenderCommand>& Commands, ERenderLay
 			Commands.end(),
 			[](const FRenderCommand& A, const FRenderCommand& B)
 			{
+				if (A.SortKey != B.SortKey)
+				{
+					return A.SortKey < B.SortKey;
+				}
+				return A.SubmissionOrder < B.SubmissionOrder;
+			});
+		break;
+
+	case ERenderLayer::Decal:
+		std::sort(
+			Commands.begin(),
+			Commands.end(),
+			[](const FRenderCommand& A, const FRenderCommand& B)
+			{
+				if (A.SortPriority != B.SortPriority)
+				{
+					return A.SortPriority < B.SortPriority;
+				}
 				if (A.SortKey != B.SortKey)
 				{
 					return A.SortKey < B.SortKey;
@@ -158,6 +189,9 @@ void FSceneRenderer::ExecuteCommands(FRenderer& Renderer)
 
 	SortRenderPass(DefaultCommandList, ERenderLayer::Default);
 	ExecuteRenderPass(Renderer, DefaultCommandList);
+
+	SortRenderPass(DecalCommandList, ERenderLayer::Decal);
+	ExecuteRenderPass(Renderer, DecalCommandList);
 
 	SortRenderPass(TransparentCommandList, ERenderLayer::Transparent);
 	ExecuteRenderPass(Renderer, TransparentCommandList);
@@ -290,6 +324,11 @@ void FSceneRenderer::ApplyWireframeOverride(FRenderCommandQueue& InOutQueue, FMa
 		Command.Material = WireframeMaterial;
 	}
 
+	for (FRenderCommand& Command : InOutQueue.DecalCommands)
+	{
+		Command.Material = WireframeMaterial;
+	}
+
 	for (FRenderCommand& Command : InOutQueue.TransparentCommands)
 	{
 		Command.Material = WireframeMaterial;
@@ -309,7 +348,7 @@ bool FSceneRenderer::RenderPacketToTarget(
 	const float ClearColor[4])
 {
 	FRenderCommandQueue SceneQueue;
-	BuildQueue(Renderer, Packet, SceneView, SceneQueue);
+	BuildQueue(Renderer, Packet, SceneView, Viewport, SceneQueue);
 
 	if (bForceWireframe)
 	{

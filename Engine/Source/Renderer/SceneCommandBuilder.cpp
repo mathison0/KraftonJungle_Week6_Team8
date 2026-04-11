@@ -478,7 +478,8 @@ void FSceneCommandBuilder::BuildQueue(
 		Command.RenderMeshOwner = DecalMesh;
 		Command.RenderMesh = DecalMesh.get();
 		Command.Material = DecalMaterial;
-		Command.RenderLayer = ERenderLayer::Transparent;
+		Command.RenderLayer = ERenderLayer::Decal;
+		Command.SortPriority = DecalComponent->GetSortOrder();
 		Command.bDisableDepthWrite = true;
 		Command.bDisableCulling = true;
 		Command.WorldMatrix = DecalComponent->GetWorldTransform();
