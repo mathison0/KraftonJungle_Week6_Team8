@@ -234,6 +234,24 @@ std::filesystem::path FPaths::IconDir()
 	return Root / "Editor/Icon/";
 }
 
+bool FPaths::FileExists(const std::wstring& Path)
+{
+	if (Path.empty())
+	{
+		return false;
+	}
+
+	std::error_code Ec;
+	std::filesystem::path FilePath(Path);
+
+	if (!FilePath.is_absolute())
+	{
+		FilePath = ProjectRoot() / FilePath;
+	}
+
+	return std::filesystem::exists(FilePath, Ec) &&
+		   std::filesystem::is_regular_file(FilePath, Ec);
+}
 
 /*
 FString FPaths::Combine(const FString& Base, const FString& Relative)

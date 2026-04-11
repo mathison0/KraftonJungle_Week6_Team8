@@ -48,6 +48,8 @@ public:
 	 */
 	static std::string ToAbsolutePath(const FString& Path);
 
+    static bool FileExists(const std::wstring& Path);
+
 private:
 	static void SetRoot(const std::filesystem::path& InPath);
 
