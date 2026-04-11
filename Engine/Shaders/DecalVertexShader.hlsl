@@ -1,4 +1,4 @@
-cbuffer FDecalPassConstants : register(b0)
+cbuffer FDecalPassConstants : register(b2)
 {
     row_major float4x4 InvViewProj;
 
