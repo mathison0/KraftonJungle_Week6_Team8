@@ -64,6 +64,7 @@ struct FViewportScenePassRequest
     // 이 뷰포트 씬 패스가 그릴 대상 렌더 서피스다.
     ID3D11RenderTargetView* RenderTargetView = nullptr;
     ID3D11DepthStencilView* DepthStencilView = nullptr;
+    ID3D11ShaderResourceView* DepthShaderResourceView = nullptr;
     D3D11_VIEWPORT Viewport = {};
     // 이 뷰포트에서 수집한 씬 패킷이다.
     FSceneRenderPacket ScenePacket;
@@ -81,6 +82,8 @@ struct FViewportScenePassRequest
 
     // 데칼 후보 축소/클러스터 캐시에 필요한 레벨 참조다.
     ULevel* Level = nullptr;
+    bool bRenderProjectedDecals = true;
+    bool bShowDecalVolumes = false;
     // 이 뷰포트 씬 패스에서 데칼 후행 패스를 실행할지 여부다.
     bool bEnableDecals = true;
     // 클러스터 셀별 오브젝트 캐시까지 만들지 여부다.

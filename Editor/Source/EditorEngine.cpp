@@ -11,6 +11,8 @@
 #include "Camera/Camera.h"
 #include "Component/CameraComponent.h"
 #include "Component/StaticMeshComponent.h"
+#include "Component/DecalComponent.h"
+#include "Math/Transform.h"
 #include "Core/ConsoleVariableManager.h"
 #include "Core/Engine.h"
 #include "Debug/EngineLog.h"
@@ -68,6 +70,29 @@ namespace
 			PreviewCamera->GetCamera()->SetPosition({ -8.0f, -8.0f, 6.0f });
 			PreviewCamera->GetCamera()->SetRotation(45.0f, -20.0f);
 			PreviewCamera->SetFov(50.0f);
+		}
+	}
+
+	void AddWireBox(FDebugLineRenderRequest& Request, const FMatrix& Transform, const FVector4& Color)
+	{
+		const FVector BaseCube[8] = {
+			FVector(-0.5f, -0.5f, -0.5f), FVector(0.5f, -0.5f, -0.5f), FVector(0.5f, 0.5f, -0.5f), FVector(-0.5f, 0.5f, -0.5f),
+			FVector(-0.5f, -0.5f, 0.5f),  FVector(0.5f, -0.5f, 0.5f),  FVector(0.5f, 0.5f, 0.5f),  FVector(-0.5f, 0.5f, 0.5f)};
+
+		const int32 Edges[12][2] = {
+			{0, 1}, {1, 2}, {2, 3}, {3, 0},
+			{4, 5}, {5, 6}, {6, 7}, {7, 4},
+			{0, 4}, {1, 5}, {2, 6}, {3, 7}};
+
+		FVector WorldVertices[8];
+		for (int32 Index = 0; Index < 8; ++Index)
+		{
+			WorldVertices[Index] = Transform.TransformPosition(BaseCube[Index]);
+		}
+
+		for (const auto& Edge : Edges)
+		{
+			FDebugLineRenderFeature::AddLine(Request, WorldVertices[Edge[0]], WorldVertices[Edge[1]], Color);
 		}
 	}
 }
@@ -464,6 +489,47 @@ void FEditorEngine::AppendSelectedBVH(FDebugLineRenderRequest& InOutRequest) con
 				: FVector4(0.0f, 1.0f, 1.0f, 1.0f);
 			FDebugLineRenderFeature::AddCube(InOutRequest, Center, Extent, Color);
 		});
+}
+
+void FEditorEngine::AppendDecalVolumes(FDebugLineRenderRequest& InOutRequest) const
+{
+	UWorld* World = GetEditorWorld();
+	if (!World)
+	{
+		return;
+	}
+
+	int32 DecalVolumeCount = 0;
+	const TArray<AActor*> Actors = World->GetAllActors();
+	for (AActor* Actor : Actors)
+	{
+		if (!Actor || Actor->IsPendingDestroy() || !Actor->IsVisible())
+		{
+			continue;
+		}
+
+		for (UActorComponent* Component : Actor->GetComponents())
+		{
+			if (!Component || !Component->IsA(UDecalComponent::StaticClass()))
+			{
+				continue;
+			}
+
+			UDecalComponent* DecalComponent = static_cast<UDecalComponent*>(Component);
+			const FVector4 Color = (Actor == GetSelectedActor())
+				? FVector4(1.0f, 0.35f, 0.15f, 1.0f)
+				: FVector4(1.0f, 0.0f, 0.0f, 1.0f);
+			AddWireBox(InOutRequest, DecalComponent->GetDecalToWorldMatrix(), Color);
+			++DecalVolumeCount;
+		}
+	}
+
+	static int32 GLastLoggedDecalVolumeCount = -1;
+	if (GLastLoggedDecalVolumeCount != DecalVolumeCount)
+	{
+		UE_LOG("[DecalDebug] Editor decal volumes discovered: %d", DecalVolumeCount);
+		GLastLoggedDecalVolumeCount = DecalVolumeCount;
+	}
 }
 
 void FEditorEngine::ClearDebugDrawForFrame()

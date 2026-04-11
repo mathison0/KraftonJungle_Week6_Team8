@@ -1,12 +1,15 @@
 #include "Component/DecalComponent.h"
 #include "Object/Class.h"
 #include "Renderer/Material.h"
+#include "Math/MathUtility.h"
 
 IMPLEMENT_RTTI(UDecalComponent, UPrimitiveComponent)
 
-void UDecalComponent::SetDecalSize(const FVector &InSize)
+void UDecalComponent::SetDecalExtent(const FVector &InExtent)
 {
-    DecalSize = InSize;
+    DecalExtent.X = FMath::Max(InExtent.X, 0.5f);
+    DecalExtent.Y = FMath::Max(InExtent.Y, 0.5f);
+    DecalExtent.Z = FMath::Max(InExtent.Z, 0.5f);
     UpdateBounds();
 }
 
@@ -17,8 +20,12 @@ void UDecalComponent::SetDecalMaterial(FMaterial *InMaterial)
 
 FMatrix UDecalComponent::GetDecalToWorldMatrix() const
 {
-    return FTransform(GetWorldTransform()).ToMatrixWithScale();
+    // Keep the decal volume in stable world space by scaling the unit cube first,
+    // then applying the component's cached world transform directly.
+    const FVector FullSize = DecalExtent * 2.0f;
+    return FMatrix::MakeScale(FullSize) * GetWorldTransform();
 }
+
 
 FMatrix UDecalComponent::GetWorldToDecalMatrix() const
 {
@@ -29,7 +36,7 @@ FBoxSphereBounds UDecalComponent::GetLocalBounds() const
 {
     FBoxSphereBounds Bounds;
     Bounds.Center = FVector::ZeroVector;
-    Bounds.BoxExtent = DecalSize * 0.5f;
+    Bounds.BoxExtent = DecalExtent;
     Bounds.Radius = Bounds.BoxExtent.Size();
     return Bounds;
 }

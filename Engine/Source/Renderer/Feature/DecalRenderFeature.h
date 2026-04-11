@@ -16,7 +16,7 @@ struct FDecalPassConstants
     FMatrix InvViewProj;
     FMatrix DecalWorld;
     FMatrix WorldToDecal;
-    FMatrix DecalWorldViewProjection;
+    FMatrix ViewProjection;
     FVector4 ScreenSize;
     FVector4 DecalColor;
 };
@@ -25,8 +25,11 @@ struct ENGINE_API FDecalRenderRequest
 {
     const FSceneRenderPacket *ScenePacket = nullptr;
     const FSceneViewRenderRequest *SceneView = nullptr;
+    ID3D11ShaderResourceView *SceneDepthSRV = nullptr;
     ULevel *Level = nullptr;
     D3D11_VIEWPORT Viewport = {};
+    bool bRenderProjectedDecals = true;
+    bool bShowDecalVolumes = false;
     bool bEnableClusterBuild = true;
     bool bEnableClusterObjectCache = false;
 };
@@ -45,12 +48,15 @@ class ENGINE_API FDecalRenderFeature
     bool CreateDefaultWhiteTexture(ID3D11Device *Device);
     void ReleaseRenderResources();
     bool BuildClusterGrid(const FDecalRenderRequest &Request);
+    bool RenderDecalVolumePass(FRenderer &Renderer, ID3D11RenderTargetView *RenderTargetView,
+                               ID3D11DepthStencilView *DepthStencilView, const FDecalRenderRequest &Request);
     bool RenderDecalPass(FRenderer &Renderer, ID3D11RenderTargetView *RenderTargetView,
                          ID3D11DepthStencilView *DepthStencilView, const FDecalRenderRequest &Request);
 
   private:
     FDecalClusterGrid ClusterGrid;
     std::shared_ptr<FMaterial> DecalMaterial;
+    std::shared_ptr<FMaterial> DecalVolumeMaterial;
     ID3D11Buffer *DecalPassConstantBuffer = nullptr;
     ID3D11Buffer *UnitCubeVertexBuffer = nullptr;
     ID3D11Buffer *UnitCubeIndexBuffer = nullptr;

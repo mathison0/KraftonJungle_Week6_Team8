@@ -164,6 +164,8 @@ private:
 	void SyncViewportClient();
 	// 선택된 액터의 BVH를 디버그 라인 요청에 추가한다.
 	void AppendSelectedBVH(FDebugLineRenderRequest& InOutRequest) const;
+	// 에디터 뷰에서 데칼 볼륨을 와이어 박스로 가시화한다.
+	void AppendDecalVolumes(FDebugLineRenderRequest& InOutRequest) const;
 
 	FEditorUI EditorUI;
 	std::unique_ptr<FPreviewViewportClient> PreviewViewportClient;

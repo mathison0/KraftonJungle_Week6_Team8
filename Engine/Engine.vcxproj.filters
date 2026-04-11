@@ -90,6 +90,9 @@
     <ClCompile Include="Source\Actor\CubeActor.cpp">
       <Filter>Source\Actor</Filter>
     </ClCompile>
+    <ClCompile Include="Source\Actor\DecalActor.cpp">
+      <Filter>Source\Actor</Filter>
+    </ClCompile>
     <ClCompile Include="Source\Actor\PlaneActor.cpp">
       <Filter>Source\Actor</Filter>
     </ClCompile>
@@ -971,6 +974,9 @@
       <Filter>Source\Renderer</Filter>
     </ClInclude>
     <ClInclude Include="Source\Actor\BillboardActor.h">
+      <Filter>Source\Actor</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Actor\DecalActor.h">
       <Filter>Source\Actor</Filter>
     </ClInclude>
     <ClInclude Include="Source\Component\MoveComponent.h">

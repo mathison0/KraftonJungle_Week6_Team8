@@ -166,15 +166,15 @@ void FPropertyWindow::DrawDecalComponentDetails(UDecalComponent* DecalComponent,
     ImGui::Spacing();
     ImGui::TextDisabled("Decal");
 
-    FVector Size = DecalComponent->GetDecalSize();
-    FVector NewSize = Size;
-    if (DrawVector3Control("Decal Size", Size, NewSize, 1.0f, "%.1f"))
+    FVector Extent = DecalComponent->GetDecalExtent();
+    FVector NewExtent = Extent;
+    if (DrawVector3Control("Decal Extent", Extent, NewExtent, 1.0f, "%.1f"))
     {
-        NewSize.X = std::max(NewSize.X, 1.0f);
-        NewSize.Y = std::max(NewSize.Y, 1.0f);
-        NewSize.Z = std::max(NewSize.Z, 1.0f);
+        NewExtent.X = std::max(NewExtent.X, 0.5f);
+        NewExtent.Y = std::max(NewExtent.Y, 0.5f);
+        NewExtent.Z = std::max(NewExtent.Z, 0.5f);
 
-        DecalComponent->SetDecalSize(NewSize);
+        DecalComponent->SetDecalExtent(NewExtent);
 
         if (AActor* Owner = DecalComponent->GetOwner())
         {

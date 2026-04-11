@@ -7,10 +7,10 @@ class ENGINE_API UDecalComponent : public UPrimitiveComponent
   public:
     DECLARE_RTTI(UDecalComponent, UPrimitiveComponent)
 
-    void SetDecalSize(const FVector &InSize);
-    const FVector &GetDecalSize() const
+    void SetDecalExtent(const FVector &InExtent);
+    const FVector &GetDecalExtent() const
     {
-        return DecalSize;
+        return DecalExtent;
     }
 
     void SetDecalMaterial(FMaterial *InMaterial);
@@ -29,7 +29,8 @@ class ENGINE_API UDecalComponent : public UPrimitiveComponent
     }
 
   private:
-    FVector DecalSize = FVector(100.0f, 100.0f, 100.0f);
+    // Half extent of the decal volume in local space.
+    FVector DecalExtent = FVector(50.0f, 50.0f, 50.0f);
     FMaterial *DecalMaterial = nullptr;
     int32 SortOrder = 0;
 };

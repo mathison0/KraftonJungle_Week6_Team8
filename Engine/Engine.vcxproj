@@ -20,6 +20,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Source\Actor\BillboardActor.h" />
+    <ClInclude Include="Source\Actor\DecalActor.h" />
     <ClInclude Include="Source\Component\BillboardComponent.h" />
     <ClInclude Include="Source\Component\DecalComponent.h" />
     <ClInclude Include="Source\Component\MoveComponent.h" />
@@ -242,6 +243,7 @@
     <ClCompile Include="Source\Actor\Actor.cpp" />
     <ClCompile Include="Source\Actor\BillboardActor.cpp" />
     <ClCompile Include="Source\Actor\CubeActor.cpp" />
+    <ClCompile Include="Source\Actor\DecalActor.cpp" />
     <ClCompile Include="Source\Actor\PlaneActor.cpp" />
     <ClCompile Include="Source\Actor\PlayerCameraActor.cpp" />
     <ClCompile Include="Source\Actor\SkySphereActor.cpp" />

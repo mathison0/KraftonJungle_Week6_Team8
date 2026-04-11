@@ -37,7 +37,8 @@ bool FScenePacketBuilder::ShouldIncludePrimitive(UPrimitiveComponent* Primitive,
 
     if (bIsDecal)
     {
-        return ShowFlags.HasFlag(EEngineShowFlags::SF_Decal);
+        return ShowFlags.HasFlag(EEngineShowFlags::SF_Decal) ||
+               ShowFlags.HasFlag(EEngineShowFlags::SF_DecalVolume);
     }
 
 	if (!ShowFlags.HasFlag(EEngineShowFlags::SF_Primitives))

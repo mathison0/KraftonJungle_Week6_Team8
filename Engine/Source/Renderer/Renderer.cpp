@@ -197,11 +197,22 @@ void FRenderer::EndFrame()
 
 bool FRenderer::RenderGameFrame(const FGameFrameRequest& Request)
 {
+    ID3D11RenderTargetView* SceneRenderTargetView = RenderDevice.GetSceneColorRTV();
+    ID3D11DepthStencilView* SceneDepthStencilView = RenderDevice.GetSceneDepthDSV();
+    ID3D11ShaderResourceView* SceneDepthSRV = RenderDevice.GetSceneDepthSRV();
+    ID3D11ShaderResourceView* SceneColorSRV = RenderDevice.GetSceneColorSRV();
+    const D3D11_VIEWPORT& SceneViewport = RenderDevice.GetViewport();
+
+    if (!SceneRenderTargetView || !SceneDepthStencilView || !SceneColorSRV)
+    {
+        return false;
+    }
+
     if (!SceneRenderer.RenderPacketToTarget(
             *this,
-            RenderDevice.GetBackBufferRTV(),
-            RenderDevice.GetBackBufferDSV(),
-            RenderDevice.GetViewport(),
+            SceneRenderTargetView,
+            SceneDepthStencilView,
+            SceneViewport,
             Request.ScenePacket,
             Request.SceneView,
             Request.AdditionalCommands,
@@ -212,7 +223,41 @@ bool FRenderer::RenderGameFrame(const FGameFrameRequest& Request)
         return false;
     }
 
-    return RenderDebugLines(Request.DebugLineRequest);
+    if (DecalFeature && !Request.ScenePacket.DecalPrimitives.empty())
+    {
+        FDecalRenderRequest DecalRequest;
+        DecalRequest.ScenePacket = &Request.ScenePacket;
+        DecalRequest.SceneView = &Request.SceneView;
+        DecalRequest.SceneDepthSRV = SceneDepthSRV;
+        DecalRequest.Viewport = SceneViewport;
+        DecalRequest.bRenderProjectedDecals = true;
+        DecalRequest.bShowDecalVolumes = false;
+        DecalRequest.bEnableClusterBuild = true;
+        DecalRequest.bEnableClusterObjectCache = false;
+
+        if (!DecalFeature->Render(*this, SceneRenderTargetView, SceneDepthStencilView, DecalRequest))
+        {
+            return false;
+        }
+    }
+
+    RenderDevice.BindSceneTargets();
+    if (!RenderDebugLines(Request.DebugLineRequest))
+    {
+        return false;
+    }
+
+    FViewportCompositeItem CompositeItem;
+    CompositeItem.SceneColorSRV = SceneColorSRV;
+    CompositeItem.Rect.X = 0;
+    CompositeItem.Rect.Y = 0;
+    CompositeItem.Rect.Width = static_cast<int32>(SceneViewport.Width);
+    CompositeItem.Rect.Height = static_cast<int32>(SceneViewport.Height);
+    CompositeItem.bVisible = true;
+
+    TArray<FViewportCompositeItem> CompositeItems;
+    CompositeItems.push_back(CompositeItem);
+    return ComposeViewports(CompositeItems);
 }
 
 bool FRenderer::RenderScreenUIDrawList(const FUIDrawList& DrawList)
@@ -303,8 +348,11 @@ bool FRenderer::RenderEditorFrame(const FEditorFrameRequest& Request)
                 FDecalRenderRequest DecalRequest;
                 DecalRequest.ScenePacket = &Context.ScenePass.ScenePacket;
                 DecalRequest.SceneView = &Context.ScenePass.SceneView;
+                DecalRequest.SceneDepthSRV = Context.ScenePass.DepthShaderResourceView;
                 DecalRequest.Level = Context.ScenePass.Level;
                 DecalRequest.Viewport = Context.ScenePass.Viewport;
+                DecalRequest.bRenderProjectedDecals = Context.ScenePass.bRenderProjectedDecals;
+                DecalRequest.bShowDecalVolumes = Context.ScenePass.bShowDecalVolumes;
                 DecalRequest.bEnableClusterBuild = true;
                 DecalRequest.bEnableClusterObjectCache = Context.ScenePass.bEnableClusterObjectCache;
 

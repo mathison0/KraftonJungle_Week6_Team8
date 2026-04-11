@@ -21,6 +21,7 @@
 #include <chrono>
 
 #include "Actor/CubeActor.h"
+#include "Actor/DecalActor.h"
 #include "Actor/PlaneActor.h"
 #include "Actor/PlayerCameraActor.h"
 #include "Actor/SphereActor.h"
@@ -51,6 +52,20 @@ namespace
 			return "Inactive";
 		default:
 			return "Unknown";
+		}
+	}
+
+	void PlaceActorInFrontOfCamera(ULevel* Scene, AActor* Actor, float Distance = 300.0f)
+	{
+		if (!Scene || !Actor)
+		{
+			return;
+		}
+
+		if (FCamera* Camera = Scene->GetCamera())
+		{
+			const FVector SpawnLocation = Camera->GetPosition() + Camera->GetForward() * Distance;
+			Actor->SetActorLocation(SpawnLocation);
 		}
 	}
 }
@@ -193,7 +208,7 @@ void FControlPanelWindow::Render(FEditorEngine* Engine)
 		ImGui::SeparatorText("Spawn");
 
 		static int32 SpawnTypeIndex = 0;
-		const char* SpawnTypes[] = { "Cube", "Sphere", "Plane", "SubUV", "Text", "Billboard", "Staticmesh", "PlayerCamera"};
+		const char* SpawnTypes[] = { "Cube", "Sphere", "Plane", "SubUV", "Text", "Billboard", "Decal", "Staticmesh", "PlayerCamera"};
 
 		ImGui::Combo("Type", &SpawnTypeIndex, SpawnTypes, IM_ARRAYSIZE(SpawnTypes));
 
@@ -250,6 +265,11 @@ void FControlPanelWindow::Render(FEditorEngine* Engine)
 				NewActor = Scene->SpawnActor<ABillboardActor>(Name);
 			}
 			else if (SpawnTypeIndex == 6)
+			{
+				NewActor = Scene->SpawnActor<ADecalActor>(Name);
+				PlaceActorInFrontOfCamera(Scene, NewActor);
+			}
+			else if (SpawnTypeIndex == 7)
 			{
 				NewActor = Scene->SpawnActor<AActor>(Name);
 				if (NewActor)

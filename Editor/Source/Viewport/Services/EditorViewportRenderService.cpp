@@ -122,7 +122,8 @@ void FEditorViewportRenderService::RenderAll(
 
 		ID3D11RenderTargetView* RTV = Entry.Viewport->GetRTV();
 		ID3D11DepthStencilView* DSV = Entry.Viewport->GetDSV();
-		if (!RTV || !DSV)
+		ID3D11ShaderResourceView* DepthSRV = Entry.Viewport->GetDepthSRV();
+		if (!RTV || !DSV || !DepthSRV)
 		{
 			continue;
 		}
@@ -188,6 +189,7 @@ void FEditorViewportRenderService::RenderAll(
 		FViewportScenePassRequest ScenePass;
 		ScenePass.RenderTargetView = RTV;
 		ScenePass.DepthStencilView = DSV;
+		ScenePass.DepthShaderResourceView = DepthSRV;
 		ScenePass.Viewport = Viewport;
 		ScenePass.ScenePacket = std::move(ScenePacket);
 		ScenePass.SceneView.ViewMatrix = AdditionalQueue.ViewMatrix;
@@ -195,6 +197,9 @@ void FEditorViewportRenderService::RenderAll(
 		ScenePass.SceneView.CameraPosition = CameraPosition;
 		ScenePass.SceneView.TotalTimeSeconds = Engine ? static_cast<float>(Engine->GetTimer().GetTotalTime()) : 0.0f;
 		ScenePass.AdditionalCommands = std::move(AdditionalQueue);
+		ScenePass.Level = EntryWorld->GetPersistentLevel();
+		ScenePass.bRenderProjectedDecals = Entry.LocalState.ShowFlags.HasFlag(EEngineShowFlags::SF_Decal);
+		ScenePass.bShowDecalVolumes = Entry.LocalState.ShowFlags.HasFlag(EEngineShowFlags::SF_DecalVolume);
 		ScenePass.bForceWireframe = (Entry.LocalState.ViewMode == ERenderMode::Wireframe && WireFrameMaterial != nullptr);
 		ScenePass.WireframeMaterial = WireFrameMaterial.get();
 		ScenePass.OutlineRequest.bEnabled =
