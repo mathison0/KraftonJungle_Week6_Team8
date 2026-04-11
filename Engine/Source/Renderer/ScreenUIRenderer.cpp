@@ -556,7 +556,7 @@ bool FScreenUIRenderer::RenderBatch(FRenderer& Renderer)
 		return false;
 	}
 
-	Renderer.RenderDevice.BindSwapChainRTV();
+	Renderer.RenderDevice.BindBackBuffer();
 	Renderer.ViewMatrix = UIBatch.ViewMatrix;
 	Renderer.ProjectionMatrix = UIBatch.ProjectionMatrix;
 	Renderer.ShaderManager.Bind(DeviceContext);
