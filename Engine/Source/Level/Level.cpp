@@ -245,6 +245,12 @@ void ULevel::QueryPrimitivesByRay(const FVector& RayOrigin, const FVector& RayDi
 	SpatialBVH.QueryRay(SceneRay, MaxDistance, OutPrimitives);
 }
 
+void ULevel::QueryPrimitivesByAABB(const FAABB& Bounds, TArray<UPrimitiveComponent*>& OutPrimitives) const
+{
+    RebuildSpatialIfNeeded();
+    SpatialBVH.QueryAABB(Bounds, OutPrimitives);
+}
+
 void ULevel::VisitPrimitivesByRay(const FVector& RayOrigin, const FVector& RayDirection, float& InOutMaxDistance, const BVH::FRayHitVisitor& Visitor) const
 {
 	RebuildSpatialIfNeeded();
