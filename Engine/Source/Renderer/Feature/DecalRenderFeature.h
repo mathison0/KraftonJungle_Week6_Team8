@@ -71,6 +71,7 @@ public:
 		const FSceneRenderPacket& Packet,
 		const FSceneViewRenderRequest& SceneView,
 		const D3D11_VIEWPORT& Viewport);
+	bool UpdateDepthCopy(FRenderer& Renderer, ID3D11DepthStencilView* SourceDepthDSV);
 	bool Render(FRenderer& Renderer);
 
 	FMaterial* GetBaseMaterial() const override;
@@ -83,12 +84,17 @@ public:
 
 private:
 	bool InitializeBaseMaterial(FRenderer& Renderer);
+	bool EnsureDepthCopyResources(uint32 Width, uint32 Height);
 	void ResetPreparedState();
 
 private:
 	ID3D11Device* Device = nullptr;
 	ID3D11DeviceContext* DeviceContext = nullptr;
 	ID3D11ShaderResourceView* DepthTextureSRV = nullptr;
+	ID3D11Texture2D* DepthCopyTexture = nullptr;
+	ID3D11ShaderResourceView* DepthCopySRV = nullptr;
+	uint32 DepthCopyWidth = 0;
+	uint32 DepthCopyHeight = 0;
 	std::shared_ptr<FMaterial> BaseMaterial;
 	TMap<std::wstring, std::shared_ptr<FMaterialTexture>> TextureCache;
 	FDecalPassStats Stats;

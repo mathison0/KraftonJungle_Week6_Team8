@@ -276,8 +276,19 @@ FMaterial* FSceneCommandBuilder::GetOrCreateDecalMaterial(
 	const FVector4 DecalExtent(Extent.X, Extent.Y, Extent.Z, 0.0f);
 	Material->SetParameterData("DecalExtent", &DecalExtent, sizeof(FVector4));
 
-	const FMatrix WorldToDecal = Component->GetWorldTransform().GetInverse().GetTransposed();
-	Material->SetParameterData("WorldToDecal", &WorldToDecal, sizeof(FMatrix));
+	const FMatrix DecalWorldTransform = Component->GetWorldTransform();
+	const FVector DecalOrigin = DecalWorldTransform.GetTranslation();
+	const FVector DecalAxisX = DecalWorldTransform.GetScaledAxis(EAxis::X);
+	const FVector DecalAxisY = DecalWorldTransform.GetScaledAxis(EAxis::Y);
+	const FVector DecalAxisZ = DecalWorldTransform.GetScaledAxis(EAxis::Z);
+	const FVector4 DecalOriginData(DecalOrigin.X, DecalOrigin.Y, DecalOrigin.Z, 1.0f);
+	const FVector4 DecalAxisXData(DecalAxisX.X, DecalAxisX.Y, DecalAxisX.Z, 0.0f);
+	const FVector4 DecalAxisYData(DecalAxisY.X, DecalAxisY.Y, DecalAxisY.Z, 0.0f);
+	const FVector4 DecalAxisZData(DecalAxisZ.X, DecalAxisZ.Y, DecalAxisZ.Z, 0.0f);
+	Material->SetParameterData("DecalOrigin", &DecalOriginData, sizeof(FVector4));
+	Material->SetParameterData("DecalAxisX", &DecalAxisXData, sizeof(FVector4));
+	Material->SetParameterData("DecalAxisY", &DecalAxisYData, sizeof(FVector4));
+	Material->SetParameterData("DecalAxisZ", &DecalAxisZData, sizeof(FVector4));
 
 	const std::wstring& TexturePath = Component->GetTexturePath();
 	if (!TexturePath.empty())

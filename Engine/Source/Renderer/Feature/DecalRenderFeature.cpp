@@ -38,6 +38,18 @@ void FDecalRenderFeature::Release()
 {
 	BaseMaterial.reset();
 	TextureCache.clear();
+	if (DepthCopySRV)
+	{
+		DepthCopySRV->Release();
+		DepthCopySRV = nullptr;
+	}
+	if (DepthCopyTexture)
+	{
+		DepthCopyTexture->Release();
+		DepthCopyTexture = nullptr;
+	}
+	DepthCopyWidth = 0;
+	DepthCopyHeight = 0;
 	Device = nullptr;
 	DeviceContext = nullptr;
 	DepthTextureSRV = nullptr;
@@ -63,7 +75,7 @@ bool FDecalRenderFeature::PrepareFrame(
 		return false;
 	}
 
-	DepthTextureSRV = Renderer.GetDepthShaderResourceView();
+	DepthTextureSRV = nullptr;
 
 	Stats.TotalDecalCount = static_cast<int32>(Packet.DecalPrimitives.size());
 	Stats.VisibleDecalCount = Stats.TotalDecalCount;
@@ -162,45 +174,35 @@ bool FDecalRenderFeature::BuildMesh(const FVector& Extent, FRenderMesh& OutMesh)
 	OutMesh.Sections.clear();
 	OutMesh.Topology = EMeshTopology::EMT_TriangleList;
 
-	const FVector P000(0.0f, -SizeY, -SizeZ);
-	const FVector P001(0.0f, -SizeY, SizeZ);
-	const FVector P010(0.0f, SizeY, -SizeZ);
-	const FVector P011(0.0f, SizeY, SizeZ);
-	const FVector P100(SizeX, -SizeY, -SizeZ);
-	const FVector P101(SizeX, -SizeY, SizeZ);
-	const FVector P110(SizeX, SizeY, -SizeZ);
-	const FVector P111(SizeX, SizeY, SizeZ);
-
 	const FVector4 White(1.0f, 1.0f, 1.0f, 1.0f);
-
-	auto AddFace = [&](const FVector& Normal, const FVector& A, const FVector& B, const FVector& C, const FVector& D)
+	const FVector Corners[8] =
 	{
-		const uint32 BaseIndex = static_cast<uint32>(OutMesh.Vertices.size());
-
-		FVertex V0 = { A, White, Normal, FVector2(0.0f, 0.0f) };
-		FVertex V1 = { B, White, Normal, FVector2(1.0f, 0.0f) };
-		FVertex V2 = { C, White, Normal, FVector2(1.0f, 1.0f) };
-		FVertex V3 = { D, White, Normal, FVector2(0.0f, 1.0f) };
-
-		OutMesh.Vertices.push_back(V0);
-		OutMesh.Vertices.push_back(V1);
-		OutMesh.Vertices.push_back(V2);
-		OutMesh.Vertices.push_back(V3);
-
-		OutMesh.Indices.push_back(BaseIndex + 0u);
-		OutMesh.Indices.push_back(BaseIndex + 1u);
-		OutMesh.Indices.push_back(BaseIndex + 2u);
-		OutMesh.Indices.push_back(BaseIndex + 0u);
-		OutMesh.Indices.push_back(BaseIndex + 2u);
-		OutMesh.Indices.push_back(BaseIndex + 3u);
+		FVector(0.0f, -SizeY, -SizeZ),
+		FVector(0.0f, -SizeY, SizeZ),
+		FVector(0.0f, SizeY, -SizeZ),
+		FVector(0.0f, SizeY, SizeZ),
+		FVector(SizeX, -SizeY, -SizeZ),
+		FVector(SizeX, -SizeY, SizeZ),
+		FVector(SizeX, SizeY, -SizeZ),
+		FVector(SizeX, SizeY, SizeZ)
 	};
 
-	AddFace(FVector(1.0f, 0.0f, 0.0f), P101, P111, P110, P100);
-	AddFace(FVector(-1.0f, 0.0f, 0.0f), P001, P000, P010, P011);
-	AddFace(FVector(0.0f, 1.0f, 0.0f), P011, P111, P110, P010);
-	AddFace(FVector(0.0f, -1.0f, 0.0f), P001, P000, P100, P101);
-	AddFace(FVector(0.0f, 0.0f, 1.0f), P001, P101, P111, P011);
-	AddFace(FVector(0.0f, 0.0f, -1.0f), P000, P010, P110, P100);
+	for (const FVector& Corner : Corners)
+	{
+		OutMesh.Vertices.push_back({ Corner, White, FVector::ZeroVector, FVector2(0.0f, 0.0f) });
+	}
+
+	const uint32 BoxIndices[] =
+	{
+		0u, 2u, 3u, 0u, 3u, 1u,
+		4u, 5u, 7u, 4u, 7u, 6u,
+		0u, 1u, 5u, 0u, 5u, 4u,
+		2u, 6u, 7u, 2u, 7u, 3u,
+		0u, 4u, 6u, 0u, 6u, 2u,
+		1u, 3u, 7u, 1u, 7u, 5u
+	};
+
+	OutMesh.Indices.insert(OutMesh.Indices.end(), std::begin(BoxIndices), std::end(BoxIndices));
 
 	OutMesh.Sections.push_back({ 0u, 0u, static_cast<uint32>(OutMesh.Indices.size()) });
 	OutMesh.UpdateLocalBound();
@@ -238,7 +240,7 @@ bool FDecalRenderFeature::InitializeBaseMaterial(FRenderer& Renderer)
 
 	FRasterizerStateOption RasterizerOption;
 	RasterizerOption.FillMode = D3D11_FILL_SOLID;
-	RasterizerOption.CullMode = D3D11_CULL_BACK;
+	RasterizerOption.CullMode = D3D11_CULL_NONE;
 	BaseMaterial->SetRasterizerOption(RasterizerOption);
 	BaseMaterial->SetRasterizerState(Renderer.GetRenderStateManager()->GetOrCreateRasterizerState(RasterizerOption));
 
@@ -259,23 +261,125 @@ bool FDecalRenderFeature::InitializeBaseMaterial(FRenderer& Renderer)
 	BaseMaterial->SetBlendOption(BlendOption);
 	BaseMaterial->SetBlendState(Renderer.GetRenderStateManager()->GetOrCreateBlendState(BlendOption));
 
-	const int32 SlotIndex = BaseMaterial->CreateConstantBuffer(Device, 32);
+	const int32 SlotIndex = BaseMaterial->CreateConstantBuffer(Device, 48);
 	if (SlotIndex >= 0)
 	{
 		BaseMaterial->RegisterParameter("BaseColor", SlotIndex, 0, sizeof(FVector4));
 		BaseMaterial->RegisterParameter("DecalExtent", SlotIndex, 16, sizeof(FVector4));
+		BaseMaterial->RegisterParameter("ProjectionParams", SlotIndex, 32, sizeof(FVector4));
 	}
 
-	const int32 MatrixSlotIndex = BaseMaterial->CreateConstantBuffer(Device, sizeof(FMatrix));
+	const int32 MatrixSlotIndex = BaseMaterial->CreateConstantBuffer(Device, sizeof(FVector4) * 4);
 	if (MatrixSlotIndex >= 0)
 	{
-		BaseMaterial->RegisterParameter("WorldToDecal", MatrixSlotIndex, 0, sizeof(FMatrix));
+		BaseMaterial->RegisterParameter("DecalOrigin", MatrixSlotIndex, 0, sizeof(FVector4));
+		BaseMaterial->RegisterParameter("DecalAxisX", MatrixSlotIndex, 16, sizeof(FVector4));
+		BaseMaterial->RegisterParameter("DecalAxisY", MatrixSlotIndex, 32, sizeof(FVector4));
+		BaseMaterial->RegisterParameter("DecalAxisZ", MatrixSlotIndex, 48, sizeof(FVector4));
 	}
 	const FVector4 DefaultColor(1.0f, 1.0f, 1.0f, 1.0f);
 	const FVector4 DefaultExtent(1.0f, 0.5f, 0.5f, 0.0f);
+	const FVector4 DefaultProjectionParams(1.0f, -1.0f, 1.0f, 1.0f);
 	BaseMaterial->SetParameterData("BaseColor", &DefaultColor, sizeof(FVector4));
 	BaseMaterial->SetParameterData("DecalExtent", &DefaultExtent, sizeof(FVector4));
+	BaseMaterial->SetParameterData("ProjectionParams", &DefaultProjectionParams, sizeof(FVector4));
 
+	return true;
+}
+
+bool FDecalRenderFeature::UpdateDepthCopy(FRenderer& Renderer, ID3D11DepthStencilView* SourceDepthDSV)
+{
+	if (!bInitialized && !Initialize(Renderer))
+	{
+		return false;
+	}
+
+	DepthTextureSRV = nullptr;
+	if (!SourceDepthDSV || !DeviceContext)
+	{
+		return false;
+	}
+
+	ID3D11Resource* DepthResource = nullptr;
+	SourceDepthDSV->GetResource(&DepthResource);
+	if (!DepthResource)
+	{
+		return false;
+	}
+
+	ID3D11Texture2D* DepthTexture = nullptr;
+	const bool bSucceeded =
+		SUCCEEDED(DepthResource->QueryInterface(__uuidof(ID3D11Texture2D), reinterpret_cast<void**>(&DepthTexture))) &&
+		DepthTexture != nullptr;
+	DepthResource->Release();
+	if (!bSucceeded)
+	{
+		return false;
+	}
+
+	D3D11_TEXTURE2D_DESC Desc = {};
+	DepthTexture->GetDesc(&Desc);
+	if (EnsureDepthCopyResources(Desc.Width, Desc.Height))
+	{
+		DeviceContext->CopyResource(DepthCopyTexture, DepthTexture);
+		DepthTextureSRV = DepthCopySRV;
+	}
+	DepthTexture->Release();
+	return DepthTextureSRV != nullptr;
+}
+
+bool FDecalRenderFeature::EnsureDepthCopyResources(uint32 Width, uint32 Height)
+{
+	if (!Device || Width == 0 || Height == 0)
+	{
+		return false;
+	}
+
+	if (DepthCopyTexture && DepthCopySRV && DepthCopyWidth == Width && DepthCopyHeight == Height)
+	{
+		return true;
+	}
+
+	if (DepthCopySRV)
+	{
+		DepthCopySRV->Release();
+		DepthCopySRV = nullptr;
+	}
+	if (DepthCopyTexture)
+	{
+		DepthCopyTexture->Release();
+		DepthCopyTexture = nullptr;
+	}
+
+	D3D11_TEXTURE2D_DESC Desc = {};
+	Desc.Width = Width;
+	Desc.Height = Height;
+	Desc.MipLevels = 1;
+	Desc.ArraySize = 1;
+	Desc.Format = DXGI_FORMAT_R24G8_TYPELESS;
+	Desc.SampleDesc.Count = 1;
+	Desc.Usage = D3D11_USAGE_DEFAULT;
+	Desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+
+	if (FAILED(Device->CreateTexture2D(&Desc, nullptr, &DepthCopyTexture)) || !DepthCopyTexture)
+	{
+		return false;
+	}
+
+	D3D11_SHADER_RESOURCE_VIEW_DESC SRVDesc = {};
+	SRVDesc.Format = DXGI_FORMAT_R24_UNORM_X8_TYPELESS;
+	SRVDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+	SRVDesc.Texture2D.MostDetailedMip = 0;
+	SRVDesc.Texture2D.MipLevels = 1;
+	if (FAILED(Device->CreateShaderResourceView(DepthCopyTexture, &SRVDesc, &DepthCopySRV)) || !DepthCopySRV)
+	{
+		DepthCopyTexture->Release();
+		DepthCopyTexture = nullptr;
+		return false;
+	}
+
+	DepthCopyWidth = Width;
+	DepthCopyHeight = Height;
 	return true;
 }
 
