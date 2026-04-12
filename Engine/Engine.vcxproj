@@ -97,6 +97,9 @@
     <ClInclude Include="Source\Renderer\Feature\TextRenderFeature.h" />
     <ClInclude Include="Source\Renderer\Feature\BillboardRenderFeature.h" />
     <ClInclude Include="Source\Renderer\BillboardRenderer.h" />
+    <ClInclude Include="Source\Renderer\DecalCommandBuilder.h" />
+    <ClInclude Include="Source\Renderer\DecalCulling.h" />
+    <ClInclude Include="Source\Renderer\SceneCommandBuildContext.h" />
     <ClInclude Include="Source\Renderer\FontAtlas.h" />
     <ClInclude Include="Source\Renderer\Material.h" />
     <ClInclude Include="Source\Renderer\MaterialManager.h" />
@@ -306,6 +309,8 @@
     <ClCompile Include="Source\Renderer\Feature\TextRenderFeature.cpp" />
     <ClCompile Include="Source\Renderer\Feature\BillboardRenderFeature.cpp" />
     <ClCompile Include="Source\Renderer\BillboardRenderer.cpp" />
+    <ClCompile Include="Source\Renderer\DecalCommandBuilder.cpp" />
+    <ClCompile Include="Source\Renderer\DecalCulling.cpp" />
     <ClCompile Include="Source\Renderer\FontAtlas.cpp" />
     <ClCompile Include="Source\Renderer\Material.cpp" />
     <ClCompile Include="Source\Renderer\MaterialManager.cpp" />

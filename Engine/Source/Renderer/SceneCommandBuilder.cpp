@@ -1,113 +1,28 @@
 #include "Renderer/SceneCommandBuilder.h"
 
 #include <algorithm>
-#include <cmath>
 #include <unordered_set>
 
 #include "Component/BillboardComponent.h"
-#include "Component/DecalComponent.h"
 #include "Component/StaticMeshComponent.h"
 #include "Component/SubUVComponent.h"
 #include "Component/TextComponent.h"
 #include "Component/UUIDBillboardComponent.h"
-#include "Level/BVH.h"
-#include "Level/Level.h"
+#include "Renderer/DecalCulling.h"
+#include "Renderer/Feature/DecalRenderFeature.h"
 #include "Renderer/Material.h"
 #include "Renderer/MeshData.h"
 #include "Renderer/RenderCommand.h"
 
+#include <chrono>
+
 namespace
 {
-	struct FOBB
-	{
-		FVector Center = FVector::ZeroVector;
-		FVector AxisX = FVector::ForwardVector;
-		FVector AxisY = FVector::RightVector;
-		FVector AxisZ = FVector::UpVector;
-		FVector Extent = FVector::ZeroVector;
-	};
-
 	static uint8 ToColorChannel(float Value)
 	{
 		const float Clamped = (std::max)(0.0f, (std::min)(1.0f, Value));
 		return static_cast<uint8>(Clamped * 255.0f + 0.5f);
 	}
-
-	static FOBB MakeDecalOBB(const UDecalComponent& Component)
-	{
-		const FVector Extent = Component.GetDecalExtent();
-		const FMatrix Transform = Component.GetWorldTransform();
-
-		FOBB OBB;
-		OBB.AxisX = Transform.GetUnitAxis(EAxis::X);
-		OBB.AxisY = Transform.GetUnitAxis(EAxis::Y);
-		OBB.AxisZ = Transform.GetUnitAxis(EAxis::Z);
-		OBB.Extent = Extent;
-		OBB.Center = Transform.GetTranslation() + OBB.AxisX * (Extent.X * 0.5f);
-		return OBB;
-	}
-
-	static bool OverlapOnAxis(const FOBB& OBB, const FAABB& AABB, const FVector& Axis)
-	{
-		const float AxisLengthSq = Axis.SizeSquared();
-		if (AxisLengthSq <= 1.0e-8f)
-		{
-			return true;
-		}
-
-		const FVector TestAxis = Axis / std::sqrt(AxisLengthSq);
-		const FVector AABBCenter = (AABB.PMin + AABB.PMax) * 0.5f;
-		const FVector AABBExtent = (AABB.PMax - AABB.PMin) * 0.5f;
-
-		const float OBBProjectionRadius =
-			std::fabs(FVector::DotProduct(OBB.AxisX * OBB.Extent.X, TestAxis)) +
-			std::fabs(FVector::DotProduct(OBB.AxisY * OBB.Extent.Y, TestAxis)) +
-			std::fabs(FVector::DotProduct(OBB.AxisZ * OBB.Extent.Z, TestAxis));
-
-		const float AABBProjectionRadius =
-			std::fabs(AABBExtent.X * TestAxis.X) +
-			std::fabs(AABBExtent.Y * TestAxis.Y) +
-			std::fabs(AABBExtent.Z * TestAxis.Z);
-
-		const float CenterDistance = std::fabs(FVector::DotProduct(OBB.Center - AABBCenter, TestAxis));
-		return CenterDistance <= (OBBProjectionRadius + AABBProjectionRadius + 1.0e-4f);
-	}
-
-	static bool IntersectOBBAABB(const FOBB& OBB, const FAABB& AABB)
-	{
-		const FVector AABBAxes[3] = { FVector::ForwardVector, FVector::RightVector, FVector::UpVector };
-		const FVector OBBAxes[3] = { OBB.AxisX, OBB.AxisY, OBB.AxisZ };
-
-		for (const FVector& Axis : OBBAxes)
-		{
-			if (!OverlapOnAxis(OBB, AABB, Axis))
-			{
-				return false;
-			}
-		}
-
-		for (const FVector& Axis : AABBAxes)
-		{
-			if (!OverlapOnAxis(OBB, AABB, Axis))
-			{
-				return false;
-			}
-		}
-
-		for (const FVector& OBBAxis : OBBAxes)
-		{
-			for (const FVector& AABBAxis : AABBAxes)
-			{
-				if (!OverlapOnAxis(OBB, AABB, FVector::CrossProduct(OBBAxis, AABBAxis)))
-				{
-					return false;
-				}
-			}
-		}
-
-		return true;
-	}
-
 }
 
 uint32 FSceneCommandBuilder::ToColorKey(const FVector4& Color)
@@ -222,84 +137,6 @@ FMaterial* FSceneCommandBuilder::GetOrCreateSubUVMaterial(
 	return Material;
 }
 
-FMaterial* FSceneCommandBuilder::GetOrCreateDecalMaterial(
-	const FSceneCommandBuildContext& BuildContext,
-	const UDecalComponent* Component)
-{
-	if (!Component || !BuildContext.DecalFeature)
-	{
-		return nullptr;
-	}
-
-	FMaterial* BaseDecalMaterial = BuildContext.DecalFeature->GetBaseMaterial();
-	if (!BaseDecalMaterial)
-	{
-		return nullptr;
-	}
-
-	auto Found = DecalMaterialsByComponent.find(Component);
-	if (Found == DecalMaterialsByComponent.end())
-	{
-		std::unique_ptr<FDynamicMaterial> OwnedMaterial = BaseDecalMaterial->CreateDynamicMaterial();
-		if (!OwnedMaterial)
-		{
-			return BaseDecalMaterial;
-		}
-		std::shared_ptr<FDynamicMaterial> Material(OwnedMaterial.release());
-		Found = DecalMaterialsByComponent.emplace(Component, std::move(Material)).first;
-	}
-
-	FDynamicMaterial* Material = Found->second.get();
-	if (!Material)
-	{
-		return BaseDecalMaterial;
-	}
-
-	FVector4 BaseColor = Component->GetTintColor();
-	BaseColor.W *= Component->GetOpacity();
-	if (!Material->SetVectorParameter("BaseColor", BaseColor))
-	{
-		Material->SetVectorParameter("ColorTint", BaseColor);
-	}
-
-	const FVector& Extent = Component->GetDecalExtent();
-	const FVector4 DecalExtent(Extent.X, Extent.Y, Extent.Z, 0.0f);
-	Material->SetParameterData("DecalExtent", &DecalExtent, sizeof(FVector4));
-	const FVector2 ViewportSize = BuildContext.ViewportSize;
-	const FVector4 ScreenSize(
-		ViewportSize.X,
-		ViewportSize.Y,
-		ViewportSize.X > 0.0f ? 1.0f / ViewportSize.X : 0.0f,
-		ViewportSize.Y > 0.0f ? 1.0f / ViewportSize.Y : 0.0f);
-	Material->SetParameterData("ScreenSize", &ScreenSize, sizeof(FVector4));
-
-	const FMatrix DecalWorldTransform = Component->GetWorldTransform();
-	const FVector DecalOrigin = DecalWorldTransform.GetTranslation();
-	const FVector DecalAxisX = DecalWorldTransform.GetScaledAxis(EAxis::X);
-	const FVector DecalAxisY = DecalWorldTransform.GetScaledAxis(EAxis::Y);
-	const FVector DecalAxisZ = DecalWorldTransform.GetScaledAxis(EAxis::Z);
-	const FVector4 DecalOriginData(DecalOrigin.X, DecalOrigin.Y, DecalOrigin.Z, 1.0f);
-	const FVector4 DecalAxisXData(DecalAxisX.X, DecalAxisX.Y, DecalAxisX.Z, 0.0f);
-	const FVector4 DecalAxisYData(DecalAxisY.X, DecalAxisY.Y, DecalAxisY.Z, 0.0f);
-	const FVector4 DecalAxisZData(DecalAxisZ.X, DecalAxisZ.Y, DecalAxisZ.Z, 0.0f);
-	Material->SetParameterData("DecalOrigin", &DecalOriginData, sizeof(FVector4));
-	Material->SetParameterData("DecalAxisX", &DecalAxisXData, sizeof(FVector4));
-	Material->SetParameterData("DecalAxisY", &DecalAxisYData, sizeof(FVector4));
-	Material->SetParameterData("DecalAxisZ", &DecalAxisZData, sizeof(FVector4));
-
-	const std::wstring& TexturePath = Component->GetTexturePath();
-	if (!TexturePath.empty())
-	{
-		std::shared_ptr<FMaterialTexture> Texture = BuildContext.DecalFeature->GetOrLoadTexture(TexturePath);
-		if (Texture)
-		{
-			Material->SetMaterialTexture(Texture);
-		}
-	}
-
-	return Material;
-}
-
 void FSceneCommandBuilder::PruneStaleSubUVMaterials(const TArray<const USubUVComponent*>& ActiveComponents)
 {
 	for (auto It = SubUVMaterialsByComponent.begin(); It != SubUVMaterialsByComponent.end();)
@@ -307,31 +144,6 @@ void FSceneCommandBuilder::PruneStaleSubUVMaterials(const TArray<const USubUVCom
 		if (std::find(ActiveComponents.begin(), ActiveComponents.end(), It->first) == ActiveComponents.end())
 		{
 			It = SubUVMaterialsByComponent.erase(It);
-			continue;
-		}
-
-		++It;
-	}
-}
-
-void FSceneCommandBuilder::PruneStaleDecalMaterials(const TArray<const UDecalComponent*>& ActiveComponents)
-{
-	for (auto It = DecalMaterialsByComponent.begin(); It != DecalMaterialsByComponent.end();)
-	{
-		if (std::find(ActiveComponents.begin(), ActiveComponents.end(), It->first) == ActiveComponents.end())
-		{
-			It = DecalMaterialsByComponent.erase(It);
-			continue;
-		}
-
-		++It;
-	}
-
-	for (auto It = DecalMeshesByComponent.begin(); It != DecalMeshesByComponent.end();)
-	{
-		if (std::find(ActiveComponents.begin(), ActiveComponents.end(), It->first) == ActiveComponents.end())
-		{
-			It = DecalMeshesByComponent.erase(It);
 			continue;
 		}
 
@@ -565,8 +377,30 @@ void FSceneCommandBuilder::BuildQueue(
 		BuildContext.BillboardFeature->PruneMaterials(ActiveBillboardComponents);
 	}
 
+	FDecalRenderFeature* DecalFeature = static_cast<FDecalRenderFeature*>(BuildContext.DecalFeature);
+	FDecalScreenClusterGrid* ClusterGrid = DecalFeature ? &DecalFeature->GetMutableClusterGrid() : nullptr;
+	std::unordered_set<const UPrimitiveComponent*> VisibleDecalReceivers;
+	VisibleDecalReceivers.reserve(Packet.MeshPrimitives.size() + Packet.SubUVPrimitives.size());
+
+	for (const FSceneMeshPrimitive& Primitive : Packet.MeshPrimitives)
+	{
+		if (FDecalCulling::CanPrimitiveReceiveDecal(Primitive.Component))
+		{
+			VisibleDecalReceivers.insert(Primitive.Component);
+		}
+	}
+
+	for (const FSceneSubUVPrimitive& Primitive : Packet.SubUVPrimitives)
+	{
+		if (FDecalCulling::CanPrimitiveReceiveDecal(Primitive.Component))
+		{
+			VisibleDecalReceivers.insert(Primitive.Component);
+		}
+	}
+
 	TArray<const UDecalComponent*> ActiveDecalComponents;
 	ActiveDecalComponents.reserve(Packet.DecalPrimitives.size());
+	const auto DecalCullStartTime = std::chrono::high_resolution_clock::now();
 
 	for (const FSceneDecalPrimitive& Primitive : Packet.DecalPrimitives)
 	{
@@ -576,46 +410,60 @@ void FSceneCommandBuilder::BuildQueue(
 			continue;
 		}
 
-		FMaterial* DecalMaterial = GetOrCreateDecalMaterial(BuildContext, DecalComponent);
-		if (!DecalMaterial)
-		{
-			DecalMaterial = BuildContext.DecalFeature->GetBaseMaterial();
-		}
-		if (!DecalMaterial)
-		{
-			continue;
-		}
-
-		auto FoundMesh = DecalMeshesByComponent.find(DecalComponent);
-		if (FoundMesh == DecalMeshesByComponent.end())
-		{
-			FoundMesh = DecalMeshesByComponent.emplace(DecalComponent, std::make_shared<FDynamicMesh>()).first;
-		}
-
-		std::shared_ptr<FDynamicMesh> DecalMesh = FoundMesh->second;
-		if (!DecalMesh)
+		const FDecalCullResult CullResult = FDecalCulling::CullDecal(
+			Packet.SceneLevel,
+			*DecalComponent,
+			BuildContext,
+			VisibleDecalReceivers,
+			ClusterGrid);
+		if (!CullResult.bHasReceiver || !CullResult.bHasClusters)
 		{
 			continue;
 		}
-
-		if (!BuildContext.DecalFeature->BuildMesh(DecalComponent->GetDecalExtent(), *DecalMesh))
-		{
-			continue;
-		}
-		DecalMesh->bIsDirty = true;
 
 		FRenderCommand Command;
-		Command.RenderMesh = DecalMesh.get();
-		Command.RenderMeshOwner = DecalMesh;
-		Command.Material = DecalMaterial;
-		Command.RenderLayer = ERenderLayer::Decal;
-		Command.SortPriority = DecalComponent->GetSortOrder();
-		Command.bDisableDepthTest = true;
-		Command.bDisableDepthWrite = true;
-		Command.WorldMatrix = DecalComponent->GetWorldTransform();
+		const int32 DecalIndex = static_cast<int32>(ActiveDecalComponents.size());
+		int32 ClusterAssignmentCount = 0;
+		if (!DecalCommandBuilder.BuildDecalCommand(
+			BuildContext,
+			DecalComponent,
+			ClusterGrid ? &CullResult.ClusterAssignment : nullptr,
+			DecalIndex,
+			Command,
+			ClusterAssignmentCount,
+			ClusterGrid))
+		{
+			continue;
+		}
+
 		OutQueue.AddCommand(Command);
 		ActiveDecalComponents.push_back(DecalComponent);
+
+		if (DecalFeature)
+		{
+			DecalFeature->GetMutableStats().ClusterAssignmentCount += ClusterAssignmentCount;
+		}
 	}
 
-	PruneStaleDecalMaterials(ActiveDecalComponents);
+	DecalCommandBuilder.PruneStaleDecalResources(ActiveDecalComponents);
+
+	if (DecalFeature)
+	{
+		FDecalPassStats& Stats = DecalFeature->GetMutableStats();
+		Stats.ReceiverPrimitiveCount = static_cast<int32>(VisibleDecalReceivers.size());
+		Stats.RenderedDecalCount = static_cast<int32>(ActiveDecalComponents.size());
+		Stats.DrawCallCount = Stats.RenderedDecalCount;
+		Stats.CulledDecalCount = (std::max)(0, Stats.VisibleDecalCount - Stats.RenderedDecalCount);
+		if (ClusterGrid)
+		{
+			for (const TArray<int32>& ClusterDecals : ClusterGrid->ClusterDecalIndices)
+			{
+				Stats.MaxClusterDecalCount = (std::max)(Stats.MaxClusterDecalCount, static_cast<int32>(ClusterDecals.size()));
+			}
+		}
+
+		const auto DecalCullEndTime = std::chrono::high_resolution_clock::now();
+		Stats.CpuTimeMs =
+			std::chrono::duration<float, std::milli>(DecalCullEndTime - DecalCullStartTime).count();
+	}
 }

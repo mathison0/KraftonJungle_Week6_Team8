@@ -3,6 +3,7 @@
 #include "imgui.h"
 
 struct FRect;
+class FRenderer;
 
 struct FObjectEntry
 {
@@ -14,7 +15,7 @@ struct FObjectEntry
 class FStatWindow
 {
 public:
-	void Render(const FRect& AreaRect);
+	void Render(const FRect& AreaRect, FRenderer* Renderer);
 	void SetObjectCount(uint32 InCount) { ObjectCount = InCount; }
 	void SetHeapUsage(uint32 InBytes) { HeapUsageBytes = InBytes; }
 

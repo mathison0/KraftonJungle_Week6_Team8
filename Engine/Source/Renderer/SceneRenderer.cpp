@@ -45,6 +45,11 @@ void FSceneRenderer::BuildQueue(
 	BuildContext.BillboardFeature = Renderer.GetSceneBillboardFeature();
 	BuildContext.DecalFeature = Renderer.GetSceneDecalFeature();
 	BuildContext.ViewportSize = FVector2(Viewport.Width, Viewport.Height);
+	BuildContext.ViewMatrix = SceneView.ViewMatrix;
+	BuildContext.ProjectionMatrix = SceneView.ProjectionMatrix;
+	BuildContext.NearPlane = SceneView.NearPlane;
+	BuildContext.FarPlane = SceneView.FarPlane;
+	BuildContext.bOrthographic = SceneView.bOrthographic;
 	BuildContext.TotalTimeSeconds = SceneView.TotalTimeSeconds;
 
 	if (BuildContext.DecalFeature)
@@ -264,17 +269,14 @@ void FSceneRenderer::ExecuteRenderPass(FRenderer& Renderer, const TArray<FRender
 
 		if (Command.Material)
 		{
+			FRasterizerStateOption RasterOpt = Command.Material->GetRasterizerOption();
+			RasterOpt.ScissorEnable = Command.bUseScissorRect;
 			if (Command.bDisableCulling)
 			{
-				FRasterizerStateOption RasterOpt = Command.Material->GetRasterizerOption();
 				RasterOpt.CullMode = D3D11_CULL_NONE;
-				auto OverrideRS = Renderer.GetRenderStateManager()->GetOrCreateRasterizerState(RasterOpt);
-				Renderer.GetRenderStateManager()->BindState(OverrideRS);
 			}
-			else
-			{
-				Renderer.GetRenderStateManager()->BindState(Command.Material->GetRasterizerState());
-			}
+			auto OverrideRS = Renderer.GetRenderStateManager()->GetOrCreateRasterizerState(RasterOpt);
+			Renderer.GetRenderStateManager()->BindState(OverrideRS);
 
 			if (Command.bDisableDepthTest || Command.bDisableDepthWrite)
 			{
@@ -295,6 +297,11 @@ void FSceneRenderer::ExecuteRenderPass(FRenderer& Renderer, const TArray<FRender
 			{
 				Renderer.GetRenderStateManager()->BindState(Command.Material->GetDepthStencilState());
 			}
+		}
+
+		if (Command.bUseScissorRect)
+		{
+			DeviceContext->RSSetScissorRects(1, &Command.ScissorRect);
 		}
 
 		if (Command.RenderMesh->Vertices.empty() && Command.RenderMesh->Indices.empty())
@@ -327,6 +334,14 @@ void FSceneRenderer::ExecuteRenderPass(FRenderer& Renderer, const TArray<FRender
 			DeviceContext->Draw(static_cast<UINT>(Command.RenderMesh->Vertices.size()), 0);
 		}
 	}
+
+	const D3D11_RECT FullViewportScissor = {
+		0,
+		0,
+		static_cast<LONG>(Renderer.GetBackBufferViewport().Width),
+		static_cast<LONG>(Renderer.GetBackBufferViewport().Height)
+	};
+	DeviceContext->RSSetScissorRects(1, &FullViewportScissor);
 }
 
 void FSceneRenderer::ApplyWireframeOverride(FRenderCommandQueue& InOutQueue, FMaterial* WireframeMaterial)

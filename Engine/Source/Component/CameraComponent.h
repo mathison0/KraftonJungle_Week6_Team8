@@ -1,7 +1,6 @@
-﻿#pragma once
+#pragma once
 #include "SceneComponent.h"
-
-class FCamera;
+#include "Camera/Camera.h"
 
 class ENGINE_API UCameraComponent : public USceneComponent
 {
@@ -21,6 +20,9 @@ public:
 	FCamera* GetCamera() const;
 	FMatrix GetViewMatrix() const;
 	FMatrix GetProjectionMatrix() const;
+	float GetNearPlane() const { return Camera ? Camera->GetNearPlane() : 0.1f; }
+	float GetFarPlane() const { return Camera ? Camera->GetFarPlane() : 1000.0f; }
+	bool IsOrthographic() const { return Camera ? Camera->IsOrthographic() : false; }
 
 	//Setting
 	void SetFov(float inFov);

@@ -3,6 +3,7 @@
 #include "Object/Class.h"
 #include "Object/ObjectGlobals.h"
 #include "Memory/MemoryBase.h"
+#include "Renderer/Renderer.h"
 #include "Viewport/ViewportTypes.h"
 
 #include "imgui.h"
@@ -82,11 +83,11 @@ void FStatWindow::RefreshObjectList()
 	bShowObjectList = true;
 }
 
-void FStatWindow::Render(const FRect& AreaRect)
+void FStatWindow::Render(const FRect& AreaRect, FRenderer* Renderer)
 {
 	RefreshObjectList();
-	const float ViewportWidth = AreaRect.Width;
-	const float ViewportHeight = AreaRect.Height;
+	const float ViewportWidth = static_cast<float>(AreaRect.Width);
+	const float ViewportHeight = static_cast<float>(AreaRect.Height);
 
 	// 뷰포트에 맞춰 창 크기 반응형 계산
 	const float MarginX = 20.0f;
@@ -153,6 +154,25 @@ void FStatWindow::Render(const FRect& AreaRect)
 	ImGui::Text("Objects : %u", ObjectEntries.size());
 	ImGui::Text("Current Heap Usage : %.2f KB", GetGMalloc()->MallocStats.CurrentAllocationBytes / 1024.0f);
 	ImGui::Text("Current Heap Count : %d", GetGMalloc()->MallocStats.CurrentAllocationCount);
+
+	if (Renderer)
+	{
+		if (FDecalRenderFeature* DecalFeature = static_cast<FDecalRenderFeature*>(Renderer->GetSceneDecalFeature()))
+		{
+			const FDecalPassStats& DecalStats = DecalFeature->GetStats();
+			ImGui::Spacing();
+			ImGui::Text("Decals");
+			ImGui::Separator();
+			ImGui::Text("Visible : %d", DecalStats.VisibleDecalCount);
+			ImGui::Text("Culled : %d", DecalStats.CulledDecalCount);
+			ImGui::Text("Rendered : %d", DecalStats.RenderedDecalCount);
+			ImGui::Text("Receivers : %d", DecalStats.ReceiverPrimitiveCount);
+			ImGui::Text("Draw Calls : %d", DecalStats.DrawCallCount);
+			ImGui::Text("Cluster Assignments : %d", DecalStats.ClusterAssignmentCount);
+			ImGui::Text("Max Cluster Load : %d", DecalStats.MaxClusterDecalCount);
+			ImGui::Text("Cull CPU : %.3f ms", DecalStats.CpuTimeMs);
+		}
+	}
 
 	if (bShowObjectList && !ObjectEntries.empty())
 	{

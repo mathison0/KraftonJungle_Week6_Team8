@@ -22,7 +22,7 @@ std::shared_ptr<FRasterizerState> FRasterizerState::Create(
 	desc.DepthBias = InOption.DepthBias;
 	// 나머지 기본값 설정
 	desc.FrontCounterClockwise = false;
-	desc.ScissorEnable = false;
+	desc.ScissorEnable = InOption.ScissorEnable;
 	desc.MultisampleEnable = false;
 	desc.AntialiasedLineEnable = false;
 

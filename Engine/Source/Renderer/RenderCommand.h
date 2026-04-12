@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 
+#include <d3d11.h>
 #include <memory>
 
 struct FRenderMesh;
@@ -43,6 +44,8 @@ struct ENGINE_API FRenderCommand
 	bool bDisableDepthTest = false;
 	bool bDisableDepthWrite = false;
 	bool bDisableCulling = false;
+	bool bUseScissorRect = false;
+	D3D11_RECT ScissorRect = {};
 
 	// 머티리얼과 메시 기준의 기본 정렬 키를 생성한다.
 	static uint64 MakeSortKey(const FMaterial* InMaterial, const FRenderMesh* InMeshData);

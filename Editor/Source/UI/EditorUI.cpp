@@ -1025,7 +1025,7 @@ void FEditorUI::Render()
 		{
 			StatArea = { 0, 0, 0, 0 };
 		}
-		Stat.Render(StatArea);
+		Stat.Render(StatArea, Engine ? Engine->GetRenderer() : nullptr);
 	}
 	Outliner.Render(Engine);
 	ContentBrowser.Render();

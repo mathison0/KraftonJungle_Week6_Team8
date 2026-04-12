@@ -17,6 +17,7 @@ struct ENGINE_API FDecalPassStats
 {
 	int32 TotalDecalCount = 0;
 	int32 VisibleDecalCount = 0;
+	int32 CulledDecalCount = 0;
 	int32 SceneBVHVisitedNodeCount = 0;
 	int32 SceneBVHCulledNodeCount = 0;
 	int32 ReceiverPrimitiveCount = 0;
@@ -31,6 +32,7 @@ struct ENGINE_API FDecalPassStats
 	{
 		TotalDecalCount = 0;
 		VisibleDecalCount = 0;
+		CulledDecalCount = 0;
 		SceneBVHVisitedNodeCount = 0;
 		SceneBVHCulledNodeCount = 0;
 		ReceiverPrimitiveCount = 0;
@@ -49,13 +51,14 @@ struct ENGINE_API FDecalScreenClusterGrid
 	int32 TileSizeY = 16;
 	int32 TilesX = 0;
 	int32 TilesY = 0;
-	TArray<TArray<int32>> TileDecalIndices;
+	int32 DepthSlices = 16;
+	TArray<TArray<int32>> ClusterDecalIndices;
 
 	void Reset()
 	{
 		TilesX = 0;
 		TilesY = 0;
-		TileDecalIndices.clear();
+		ClusterDecalIndices.clear();
 	}
 };
 
@@ -80,7 +83,9 @@ public:
 	ID3D11ShaderResourceView* GetDepthTextureSRV() const override;
 
 	const FDecalPassStats& GetStats() const { return Stats; }
+	FDecalPassStats& GetMutableStats() { return Stats; }
 	const FDecalScreenClusterGrid& GetClusterGrid() const { return ClusterGrid; }
+	FDecalScreenClusterGrid& GetMutableClusterGrid() { return ClusterGrid; }
 
 private:
 	bool InitializeBaseMaterial(FRenderer& Renderer);

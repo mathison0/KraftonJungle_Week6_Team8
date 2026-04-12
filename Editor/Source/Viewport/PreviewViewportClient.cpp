@@ -77,6 +77,9 @@ void FPreviewViewportClient::Render(FEngine* Engine, FRenderer* Renderer)
 			FGameFrameRequest FrameRequest;
 			FrameRequest.SceneView.ViewMatrix = ActiveCamera->GetViewMatrix();
 			FrameRequest.SceneView.ProjectionMatrix = ActiveCamera->GetProjectionMatrix();
+			FrameRequest.SceneView.NearPlane = ActiveCamera->GetNearPlane();
+			FrameRequest.SceneView.FarPlane = ActiveCamera->GetFarPlane();
+			FrameRequest.SceneView.bOrthographic = ActiveCamera->IsOrthographic();
 
 			FFrustum Frustum;
 			Frustum.ExtractFromVP(FrameRequest.SceneView.ViewMatrix * FrameRequest.SceneView.ProjectionMatrix);

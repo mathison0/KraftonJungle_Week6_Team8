@@ -88,9 +88,14 @@ bool FDecalRenderFeature::PrepareFrame(
 		: 0;
 
 	const int32 TileCount = ClusterGrid.TilesX * ClusterGrid.TilesY;
-	if (TileCount > 0)
+	const int32 ClusterCount = TileCount * ClusterGrid.DepthSlices;
+	if (ClusterCount > 0)
 	{
-		ClusterGrid.TileDecalIndices.resize(TileCount);
+		ClusterGrid.ClusterDecalIndices.resize(ClusterCount);
+		for (TArray<int32>& Cluster : ClusterGrid.ClusterDecalIndices)
+		{
+			Cluster.clear();
+		}
 	}
 
 	return true;

@@ -36,6 +36,9 @@ struct FSceneViewRenderRequest
 	FMatrix ProjectionMatrix = FMatrix::Identity;
 	// 빌보드나 카메라 정렬 프리미티브가 참조할 월드 공간 카메라 위치다.
 	FVector CameraPosition = FVector::ZeroVector;
+	float NearPlane = 0.1f;
+	float FarPlane = 1000.0f;
+	bool bOrthographic = false;
 	// SubUV 같은 시간 기반 기능이 참조할 누적 프레임 시간이다.
 	float TotalTimeSeconds = 0.0f;
 };
