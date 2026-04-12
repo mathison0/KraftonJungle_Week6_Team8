@@ -87,6 +87,8 @@ public:
 	const FDecalScreenClusterGrid& GetClusterGrid() const { return ClusterGrid; }
 	FDecalScreenClusterGrid& GetMutableClusterGrid() { return ClusterGrid; }
 
+	void BindDepthSRVToCommands(TArray<FRenderCommand>& Commands) const override;
+
 private:
 	bool InitializeBaseMaterial(FRenderer& Renderer);
 	bool EnsureDepthCopyResources(uint32 Width, uint32 Height);

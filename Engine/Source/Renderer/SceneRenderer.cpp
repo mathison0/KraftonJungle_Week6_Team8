@@ -202,15 +202,8 @@ void FSceneRenderer::ExecuteCommands(FRenderer& Renderer, ID3D11DepthStencilView
 		FDecalRenderFeature* DecalFeature = static_cast<FDecalRenderFeature*>(Renderer.GetSceneDecalFeature());
 		if (DecalFeature && DecalFeature->UpdateDepthCopy(Renderer, DepthStencilView))
 		{
-			ID3D11ShaderResourceView* DepthSRV = DecalFeature->GetDepthTextureSRV();
-			for (FRenderCommand& Command : DecalCommandList)
-			{
-				if (Command.Material)
-				{
-					Command.Material->SetPixelTextureBinding(1, DepthSRV, nullptr);
-				}
-			}
 			SortRenderPass(DecalCommandList, ERenderLayer::Decal);
+			DecalFeature->BindDepthSRVToCommands(DecalCommandList);
 			ExecuteRenderPass(Renderer, DecalCommandList);
 		}
 	}

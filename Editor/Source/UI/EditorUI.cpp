@@ -1025,7 +1025,23 @@ void FEditorUI::Render()
 		{
 			StatArea = { 0, 0, 0, 0 };
 		}
-		Stat.Render(StatArea, Engine ? Engine->GetRenderer() : nullptr);
+
+		if (Engine)
+		{
+			if (FRenderer* Renderer = Engine->GetRenderer())
+			{
+				if (FDecalRenderFeature* DecalFeature = static_cast<FDecalRenderFeature*>(Renderer->GetSceneDecalFeature()))
+				{
+					Stat.SetDecalStats(DecalFeature->GetStats());
+				}
+				else
+				{
+					Stat.ClearDecalStats();
+				}
+			}
+		}
+
+		Stat.Render(StatArea);
 	}
 	Outliner.Render(Engine);
 	ContentBrowser.Render();

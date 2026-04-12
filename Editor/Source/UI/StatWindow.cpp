@@ -3,7 +3,6 @@
 #include "Object/Class.h"
 #include "Object/ObjectGlobals.h"
 #include "Memory/MemoryBase.h"
-#include "Renderer/Renderer.h"
 #include "Viewport/ViewportTypes.h"
 
 #include "imgui.h"
@@ -83,7 +82,7 @@ void FStatWindow::RefreshObjectList()
 	bShowObjectList = true;
 }
 
-void FStatWindow::Render(const FRect& AreaRect, FRenderer* Renderer)
+void FStatWindow::Render(const FRect& AreaRect)
 {
 	RefreshObjectList();
 	const float ViewportWidth = static_cast<float>(AreaRect.Width);
@@ -155,23 +154,19 @@ void FStatWindow::Render(const FRect& AreaRect, FRenderer* Renderer)
 	ImGui::Text("Current Heap Usage : %.2f KB", GetGMalloc()->MallocStats.CurrentAllocationBytes / 1024.0f);
 	ImGui::Text("Current Heap Count : %d", GetGMalloc()->MallocStats.CurrentAllocationCount);
 
-	if (Renderer)
+	if (bHasDecalStats)
 	{
-		if (FDecalRenderFeature* DecalFeature = static_cast<FDecalRenderFeature*>(Renderer->GetSceneDecalFeature()))
-		{
-			const FDecalPassStats& DecalStats = DecalFeature->GetStats();
-			ImGui::Spacing();
-			ImGui::Text("Decals");
-			ImGui::Separator();
-			ImGui::Text("Visible : %d", DecalStats.VisibleDecalCount);
-			ImGui::Text("Culled : %d", DecalStats.CulledDecalCount);
-			ImGui::Text("Rendered : %d", DecalStats.RenderedDecalCount);
-			ImGui::Text("Receivers : %d", DecalStats.ReceiverPrimitiveCount);
-			ImGui::Text("Draw Calls : %d", DecalStats.DrawCallCount);
-			ImGui::Text("Cluster Assignments : %d", DecalStats.ClusterAssignmentCount);
-			ImGui::Text("Max Cluster Load : %d", DecalStats.MaxClusterDecalCount);
-			ImGui::Text("Cull CPU : %.3f ms", DecalStats.CpuTimeMs);
-		}
+		ImGui::Spacing();
+		ImGui::Text("Decals");
+		ImGui::Separator();
+		ImGui::Text("Visible : %d", DecalStats.VisibleDecalCount);
+		ImGui::Text("Culled : %d", DecalStats.CulledDecalCount);
+		ImGui::Text("Rendered : %d", DecalStats.RenderedDecalCount);
+		ImGui::Text("Receivers : %d", DecalStats.ReceiverPrimitiveCount);
+		ImGui::Text("Draw Calls : %d", DecalStats.DrawCallCount);
+		ImGui::Text("Cluster Assignments : %d", DecalStats.ClusterAssignmentCount);
+		ImGui::Text("Max Cluster Load : %d", DecalStats.MaxClusterDecalCount);
+		ImGui::Text("Cull CPU : %.3f ms", DecalStats.CpuTimeMs);
 	}
 
 	if (bShowObjectList && !ObjectEntries.empty())

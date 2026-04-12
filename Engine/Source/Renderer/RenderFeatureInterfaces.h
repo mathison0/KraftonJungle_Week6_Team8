@@ -10,6 +10,7 @@ struct FMaterialTexture;
 struct FRenderMesh;
 class UBillboardComponent;
 class UDecalComponent;
+struct FRenderCommand;
 
 class ENGINE_API ISceneTextFeature
 {
@@ -50,5 +51,5 @@ public:
 	virtual bool BuildMesh(const FVector& Extent, FRenderMesh& OutMesh) const = 0;
 	virtual std::shared_ptr<FMaterialTexture> GetOrLoadTexture(const std::wstring& Path) = 0;
 	virtual ID3D11ShaderResourceView* GetDepthTextureSRV() const = 0;
-
+	virtual void BindDepthSRVToCommands(TArray<FRenderCommand>& Commands) const = 0;
 };

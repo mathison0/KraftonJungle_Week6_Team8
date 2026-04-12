@@ -394,3 +394,18 @@ void FDecalRenderFeature::ResetPreparedState()
 	Stats.Reset();
 	ClusterGrid.Reset();
 }
+
+void FDecalRenderFeature::BindDepthSRVToCommands(TArray<FRenderCommand>& Commands) const
+{
+	if (!DepthTextureSRV)
+	{
+		return;
+	}
+	for (FRenderCommand& Command : Commands)
+	{
+		if (Command.Material)
+		{
+			Command.Material->SetPixelTextureBinding(1, DepthTextureSRV, nullptr);
+		}
+	}
+}
