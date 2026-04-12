@@ -27,6 +27,7 @@
 #include "Viewport/EditorViewportClient.h"
 #include "World/WorldContext.h"
 
+
 enum class EFileDialogType
 {
 	Open,
@@ -485,6 +486,9 @@ void FEditorUI::LoadEditorSettings()
 
 		GetPrivateProfileStringW(Sec, L"SF.Collision", L"0", Buf, 64, Path.c_str());
 		S.ShowFlags.SetFlag(EEngineShowFlags::SF_Collision, _wtoi(Buf) != 0);
+
+		GetPrivateProfileStringW(Sec, L"SF.Decal", L"1", Buf, 64, Path.c_str());
+		S.ShowFlags.SetFlag(EEngineShowFlags::SF_Decal, _wtoi(Buf) != 0);
 	}
 
 	bool bAnyDebugDrawEnabled = false;
@@ -577,6 +581,8 @@ void FEditorUI::SaveEditorSettings()
 			S.ShowFlags.HasFlag(EEngineShowFlags::SF_WorldAxis) ? L"1" : L"0", Path.c_str());
 		WritePrivateProfileStringW(Sec, L"SF.Collision",
 			S.ShowFlags.HasFlag(EEngineShowFlags::SF_Collision) ? L"1" : L"0", Path.c_str());
+		WritePrivateProfileStringW(Sec, L"SF.Decal",
+			S.ShowFlags.HasFlag(EEngineShowFlags::SF_Decal) ? L"1" : L"0", Path.c_str());
 	}
 
 	FSlateApplication* Slate = Engine->GetSlateApplication();
@@ -872,6 +878,7 @@ void FEditorUI::Render()
 				ShowFlagCheckbox("UUID", EEngineShowFlags::SF_UUID);
 				ShowFlagCheckbox("Debug Draw", EEngineShowFlags::SF_DebugDraw);
 				ShowFlagCheckbox("Collision", EEngineShowFlags::SF_Collision);
+				ShowFlagCheckbox("Decal", EEngineShowFlags::SF_Decal);
 				ImGui::SeparatorText("Grid");
 				bool bShowGrid = TargetEntry->LocalState.bShowGrid;
 				if (ImGui::Checkbox("Show Grid", &bShowGrid))
