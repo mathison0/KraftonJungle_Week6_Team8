@@ -267,12 +267,13 @@ bool FDecalRenderFeature::InitializeBaseMaterial(FRenderer& Renderer)
 	BaseMaterial->SetBlendOption(BlendOption);
 	BaseMaterial->SetBlendState(Renderer.GetRenderStateManager()->GetOrCreateBlendState(BlendOption));
 
-	const int32 SlotIndex = BaseMaterial->CreateConstantBuffer(Device, 48);
+	const int32 SlotIndex = BaseMaterial->CreateConstantBuffer(Device, sizeof(FVector4) * 4);
 	if (SlotIndex >= 0)
 	{
 		BaseMaterial->RegisterParameter("BaseColor", SlotIndex, 0, sizeof(FVector4));
 		BaseMaterial->RegisterParameter("DecalExtent", SlotIndex, 16, sizeof(FVector4));
 		BaseMaterial->RegisterParameter("ScreenSize", SlotIndex, 32, sizeof(FVector4));
+		BaseMaterial->RegisterParameter("FadeParams", SlotIndex, 48, sizeof(FVector4));
 	}
 
 	const int32 MatrixSlotIndex = BaseMaterial->CreateConstantBuffer(Device, sizeof(FVector4) * 4);
@@ -286,9 +287,11 @@ bool FDecalRenderFeature::InitializeBaseMaterial(FRenderer& Renderer)
 	const FVector4 DefaultColor(1.0f, 1.0f, 1.0f, 1.0f);
 	const FVector4 DefaultExtent(1.0f, 0.5f, 0.5f, 0.0f);
 	const FVector4 DefaultScreenSize(1.0f, 1.0f, 1.0f, 1.0f);
+	const FVector4 DefaultFadeParams(0.2f, 0.2f, 0.0f, 1.0f);
 	BaseMaterial->SetParameterData("BaseColor", &DefaultColor, sizeof(FVector4));
 	BaseMaterial->SetParameterData("DecalExtent", &DefaultExtent, sizeof(FVector4));
 	BaseMaterial->SetParameterData("ScreenSize", &DefaultScreenSize, sizeof(FVector4));
+	BaseMaterial->SetParameterData("FadeParams", &DefaultFadeParams, sizeof(FVector4));
 
 	return true;
 }

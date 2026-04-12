@@ -50,6 +50,11 @@ FMaterial* FDecalCommandBuilder::GetOrCreateDecalMaterial(
 	const FVector4 DecalExtent(Extent.X, Extent.Y, Extent.Z, 0.0f);
 	Material->SetParameterData("DecalExtent", &DecalExtent, sizeof(FVector4));
 
+	const float FadeRadius = Component->GetFadeRadius();
+	const float bFadeActive = Component->IsFadeEnabled() ? 1.0f : 0.0f;
+	const FVector4 FadeParams(FadeRadius, FadeRadius, 0.0f, bFadeActive);
+	Material->SetParameterData("FadeParams", &FadeParams, sizeof(FVector4));
+
 	const FVector2 ViewportSize = BuildContext.ViewportSize;
 	const FVector4 ScreenSize(
 		ViewportSize.X,

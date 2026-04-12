@@ -551,6 +551,24 @@ void FPropertyWindow::DrawDecalComponentDetails(UDecalComponent* DecalComponent)
 		DecalComponent->SetHiddenInGame(bHiddenInGame);
 	}
 
+	ImGui::Spacing();
+	ImGui::TextDisabled("Edge Fade");
+
+	bool bFadeEnabled = DecalComponent->IsFadeEnabled();
+	if (ImGui::Checkbox("Enable Edge Fade", &bFadeEnabled))
+	{
+		DecalComponent->SetFadeEnabled(bFadeEnabled);
+	}
+
+	if (bFadeEnabled)
+	{
+		float FadeRadius = DecalComponent->GetFadeRadius();
+		if (ImGui::SliderFloat("Fade Radius", &FadeRadius, 0.0f, 1.0f, "%.2f"))
+		{
+			DecalComponent->SetFadeRadius(FadeRadius);
+		}
+	}
+
 	std::wstring CurrentPath = DecalComponent->GetTexturePath();
 	std::string CurrentFileName = CurrentPath.empty() ? "None" : std::filesystem::path(CurrentPath).filename().string();
 	if (ImGui::BeginCombo("Texture", CurrentFileName.c_str()))
