@@ -8,6 +8,7 @@ class UActorComponent;
 class USceneComponent;
 class UBillboardComponent;
 class UDecalComponent;
+class ASpotLightFakeActor;
 using FPropertyChangedCallback = std::function<void(const FVector&, const FVector&, const FVector&)>;
 
 class FPropertyWindow
@@ -37,6 +38,7 @@ private:
 	void DrawSubUVComponentDetails(class USubUVComponent* SubUVComponent);
 	void DrawBillboardComponentDetials(class UBillboardComponent* BillboardComponent, FEditorEngine* Engine);
 	void DrawDecalComponentDetails(class UDecalComponent* DecalComponent);
+	void DrawSpotLightFakeActorDetails(class ASpotLightFakeActor* SpotLightFakeActor);
 	bool DrawVector3Control(const char* Label, const FVector& Value, FVector& OutValue, float Speed, const char* Format);
 	bool DrawAddComponentButton(AActor* SelectedActor);
 	bool AddComponentToActor(AActor* SelectedActor, class UClass* ComponentClass, const char* BaseName);

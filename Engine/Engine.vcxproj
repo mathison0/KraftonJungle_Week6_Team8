@@ -21,6 +21,7 @@
   <ItemGroup>
     <ClInclude Include="Source\Actor\DecalActor.h" />
     <ClInclude Include="Source\Actor\BillboardActor.h" />
+    <ClInclude Include="Source\Actor\SpotLightFakeActor.h" />
     <ClInclude Include="Source\Component\BillboardComponent.h" />
     <ClInclude Include="Source\Component\MoveComponent.h" />
     <ClInclude Include="Source\CoreMinimal.h" />
@@ -250,6 +251,7 @@
     <ClCompile Include="Source\Actor\PlayerCameraActor.cpp" />
     <ClCompile Include="Source\Actor\SkySphereActor.cpp" />
     <ClCompile Include="Source\Actor\SphereActor.cpp" />
+    <ClCompile Include="Source\Actor\SpotLightFakeActor.cpp" />
     <ClCompile Include="Source\Actor\StaticMeshActor.cpp" />
     <ClCompile Include="Source\Actor\SubUVActor.cpp" />
     <ClCompile Include="Source\Actor\TextActor.cpp" />

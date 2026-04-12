@@ -1,6 +1,7 @@
 #include "PropertyWindow.h"
 #include "EditorEngine.h"
 #include "Actor/Actor.h"
+#include "Actor/SpotLightFakeActor.h"
 #include "Component/ActorComponent.h"
 #include "Component/CameraComponent.h"
 #include "Component/PrimitiveComponent.h"
@@ -22,6 +23,7 @@
 #include "Renderer/RenderMesh.h"
 #include "Renderer/Material.h"
 #include "Renderer/MaterialManager.h"
+#include <filesystem>
 
 namespace
 {
@@ -89,6 +91,56 @@ namespace
 		{
 			RefreshSceneComponentHierarchy(Child);
 		}
+	}
+
+	bool IsSupportedTextureFile(const std::filesystem::path& Path)
+	{
+		const std::filesystem::path Extension = Path.extension();
+		return Extension == ".png" || Extension == ".jpg" || Extension == ".jpeg" || Extension == ".dds";
+	}
+
+	bool DrawTexturePathCombo(const char* Label, const std::wstring& CurrentPath, const std::function<void(const std::wstring&)>& OnSelected)
+	{
+		const std::string CurrentFileName = CurrentPath.empty() ? "None" : std::filesystem::path(CurrentPath).filename().string();
+		bool bChanged = false;
+		if (ImGui::BeginCombo(Label, CurrentFileName.c_str()))
+		{
+			const auto DrawTextureDirectory = [&](const std::filesystem::path& Directory)
+			{
+				if (!std::filesystem::exists(Directory))
+				{
+					return;
+				}
+
+				for (const auto& Entry : std::filesystem::directory_iterator(Directory))
+				{
+					if (!Entry.is_regular_file() || !IsSupportedTextureFile(Entry.path()))
+					{
+						continue;
+					}
+
+					const std::wstring CandidatePath = Entry.path().wstring();
+					const std::string FileName = Entry.path().filename().string();
+					const bool bSelected = (CandidatePath == CurrentPath);
+					if (ImGui::Selectable(FileName.c_str(), bSelected))
+					{
+						OnSelected(CandidatePath);
+						bChanged = true;
+					}
+
+					if (bSelected)
+					{
+						ImGui::SetItemDefaultFocus();
+					}
+				}
+			};
+
+			DrawTextureDirectory(FPaths::TextureDir());
+			DrawTextureDirectory(FPaths::ContentDir() / "Textures");
+			ImGui::EndCombo();
+		}
+
+		return bChanged;
 	}
 }
 
@@ -509,6 +561,8 @@ void FPropertyWindow::DrawDecalComponentDetails(UDecalComponent* DecalComponent)
 		return;
 	}
 
+	const bool bOwnedBySpotLightFake = DecalComponent->GetOwner() && DecalComponent->GetOwner()->IsA(ASpotLightFakeActor::StaticClass());
+
 	ImGui::Spacing();
 	ImGui::TextDisabled("Decal");
 
@@ -526,17 +580,20 @@ void FPropertyWindow::DrawDecalComponentDetails(UDecalComponent* DecalComponent)
 		}
 	}
 
-	FVector4 TintColor = DecalComponent->GetTintColor();
-	float ColorArray[4] = { TintColor.X, TintColor.Y, TintColor.Z, TintColor.W };
-	if (ImGui::ColorEdit4("Tint", ColorArray))
+	if (!bOwnedBySpotLightFake)
 	{
-		DecalComponent->SetTintColor(FVector4(ColorArray[0], ColorArray[1], ColorArray[2], ColorArray[3]));
-	}
+		FVector4 TintColor = DecalComponent->GetTintColor();
+		float ColorArray[4] = { TintColor.X, TintColor.Y, TintColor.Z, TintColor.W };
+		if (ImGui::ColorEdit4("Tint", ColorArray))
+		{
+			DecalComponent->SetTintColor(FVector4(ColorArray[0], ColorArray[1], ColorArray[2], ColorArray[3]));
+		}
 
-	float Opacity = DecalComponent->GetOpacity();
-	if (ImGui::DragFloat("Opacity", &Opacity, 0.01f, 0.0f, 1.0f, "%.2f"))
-	{
-		DecalComponent->SetOpacity(Opacity);
+		float Opacity = DecalComponent->GetOpacity();
+		if (ImGui::DragFloat("Opacity", &Opacity, 0.01f, 0.0f, 1.0f, "%.2f"))
+		{
+			DecalComponent->SetOpacity(Opacity);
+		}
 	}
 
 	int32 SortOrder = DecalComponent->GetSortOrder();
@@ -569,48 +626,63 @@ void FPropertyWindow::DrawDecalComponentDetails(UDecalComponent* DecalComponent)
 		}
 	}
 
-	std::wstring CurrentPath = DecalComponent->GetTexturePath();
-	std::string CurrentFileName = CurrentPath.empty() ? "None" : std::filesystem::path(CurrentPath).filename().string();
-	if (ImGui::BeginCombo("Texture", CurrentFileName.c_str()))
+	DrawTexturePathCombo("Texture", DecalComponent->GetTexturePath(), [DecalComponent](const std::wstring& CandidatePath)
 	{
-		auto DrawTextureDirectory = [&](const std::filesystem::path& Directory)
+		DecalComponent->SetTexturePath(CandidatePath);
+	});
+}
+
+void FPropertyWindow::DrawSpotLightFakeActorDetails(ASpotLightFakeActor* SpotLightFakeActor)
+{
+	if (!SpotLightFakeActor)
+	{
+		return;
+	}
+
+	ImGui::Spacing();
+	ImGui::TextDisabled("Spot Light Fake");
+
+	DrawTexturePathCombo("Billboard Texture", SpotLightFakeActor->GetBillboardTexturePath(), [SpotLightFakeActor](const std::wstring& CandidatePath)
+	{
+		SpotLightFakeActor->SetBillboardTexturePath(CandidatePath);
+	});
+
+	FVector2 BillboardSize = SpotLightFakeActor->GetBillboardSize();
+	float BillboardSizeArray[2] = { BillboardSize.X, BillboardSize.Y };
+	if (ImGui::DragFloat2("Billboard Size", BillboardSizeArray, 0.01f, 0.01f, 100.0f, "%.2f"))
+	{
+		SpotLightFakeActor->SetBillboardSize(FVector2(BillboardSizeArray[0], BillboardSizeArray[1]));
+	}
+
+	DrawTexturePathCombo("Decal Texture", SpotLightFakeActor->GetDecalTexturePath(), [SpotLightFakeActor](const std::wstring& CandidatePath)
+	{
+		SpotLightFakeActor->SetDecalTexturePath(CandidatePath);
+	});
+
+	FVector DecalExtent = SpotLightFakeActor->GetDecalExtent();
+	float DecalExtentArray[3] = { DecalExtent.X, DecalExtent.Y, DecalExtent.Z };
+	if (ImGui::DragFloat3("Decal Extent", DecalExtentArray, 0.01f, 0.01f, 100.0f, "%.2f"))
+	{
+		SpotLightFakeActor->SetDecalExtent(FVector(DecalExtentArray[0], DecalExtentArray[1], DecalExtentArray[2]));
+		if (ULevel* Level = SpotLightFakeActor->GetLevel())
 		{
-			if (!std::filesystem::exists(Directory))
-			{
-				return;
-			}
+			Level->MarkSpatialDirty();
+		}
+	}
 
-			for (const auto& Entry : std::filesystem::directory_iterator(Directory))
-			{
-				if (!Entry.is_regular_file())
-				{
-					continue;
-				}
+	bool bFadeEnabled = SpotLightFakeActor->IsDecalFadeEnabled();
+	if (ImGui::Checkbox("Use Fade In/Out", &bFadeEnabled))
+	{
+		SpotLightFakeActor->SetDecalFadeEnabled(bFadeEnabled);
+	}
 
-				const std::filesystem::path Extension = Entry.path().extension();
-				if (Extension != ".png" && Extension != ".jpg" && Extension != ".jpeg" && Extension != ".dds")
-				{
-					continue;
-				}
-
-				const std::wstring CandidatePath = Entry.path().wstring();
-				const std::string FileName = Entry.path().filename().string();
-				const bool bSelected = (CandidatePath == CurrentPath);
-				if (ImGui::Selectable(FileName.c_str(), bSelected))
-				{
-					DecalComponent->SetTexturePath(CandidatePath);
-				}
-
-				if (bSelected)
-				{
-					ImGui::SetItemDefaultFocus();
-				}
-			}
-		};
-
-		DrawTextureDirectory(FPaths::TextureDir());
-		DrawTextureDirectory(FPaths::ContentDir() / "Textures");
-		ImGui::EndCombo();
+	if (bFadeEnabled)
+	{
+		float FadeRadius = SpotLightFakeActor->GetDecalFadeRadius();
+		if (ImGui::SliderFloat("Fade In/Out Radius", &FadeRadius, 0.0f, 1.0f, "%.2f"))
+		{
+			SpotLightFakeActor->SetDecalFadeRadius(FadeRadius);
+		}
 	}
 }
 
@@ -669,6 +741,14 @@ void FPropertyWindow::DrawDetailsSection(UActorComponent* Component, FEditorEngi
 			}
 		}
 		ImGui::EndDisabled();
+	}
+
+	if (AActor* OwnerActor = Component->GetOwner())
+	{
+		if (OwnerActor->IsA(ASpotLightFakeActor::StaticClass()))
+		{
+			DrawSpotLightFakeActorDetails(static_cast<ASpotLightFakeActor*>(OwnerActor));
+		}
 	}
 
 	bool bTickEnabled = Component->IsComponentTickEnabled();

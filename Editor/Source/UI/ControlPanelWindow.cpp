@@ -29,6 +29,7 @@
 #include "Actor/TextActor.h"
 #include "Actor/BillboardActor.h"
 #include "Actor/DecalActor.h"
+#include "Actor/SpotLightFakeActor.h"
 #include "Math/MathUtility.h"
 #include "Asset/ObjManager.h"
 #include "Renderer/Material.h"
@@ -194,7 +195,7 @@ void FControlPanelWindow::Render(FEditorEngine* Engine)
 		ImGui::SeparatorText("Spawn");
 
 		static int32 SpawnTypeIndex = 0;
-		const char* SpawnTypes[] = { "Cube", "Sphere", "Plane", "SubUV", "Text", "Billboard", "Decal", "Staticmesh", "PlayerCamera"};
+		const char* SpawnTypes[] = { "Cube", "Sphere", "Plane", "SubUV", "Text", "Billboard", "Decal", "SpotLightFake", "Staticmesh", "PlayerCamera"};
 
 		ImGui::Combo("Type", &SpawnTypeIndex, SpawnTypes, IM_ARRAYSIZE(SpawnTypes));
 
@@ -255,6 +256,10 @@ void FControlPanelWindow::Render(FEditorEngine* Engine)
 				NewActor = Scene->SpawnActor<ADecalActor>(Name);
 			}
 			else if (SpawnTypeIndex == 7)
+			{
+				NewActor = Scene->SpawnActor<ASpotLightFakeActor>(Name);
+			}
+			else if (SpawnTypeIndex == 8)
 			{
 				NewActor = Scene->SpawnActor<AActor>(Name);
 				if (NewActor)

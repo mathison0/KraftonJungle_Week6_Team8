@@ -352,6 +352,9 @@
     <ClCompile Include="Source\Actor\DecalActor.cpp">
       <Filter>Source\Actor</Filter>
     </ClCompile>
+    <ClCompile Include="Source\Renderer\DecalCommandBuilder.cpp" />
+    <ClCompile Include="Source\Renderer\DecalCulling.cpp" />
+    <ClCompile Include="Source\Actor\SpotLightFakeActor.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Source\CoreMinimal.h">
@@ -988,6 +991,10 @@
     <ClInclude Include="Source\Actor\DecalActor.h">
       <Filter>Source\Actor</Filter>
     </ClInclude>
+    <ClInclude Include="Source\Renderer\DecalCommandBuilder.h" />
+    <ClInclude Include="Source\Renderer\DecalCulling.h" />
+    <ClInclude Include="Source\Renderer\SceneCommandBuildContext.h" />
+    <ClInclude Include="Source\Actor\SpotLightFakeActor.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
