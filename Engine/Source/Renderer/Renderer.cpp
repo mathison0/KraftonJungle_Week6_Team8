@@ -644,19 +644,6 @@ const FDecalFrameStats& FRenderer::GetDecalFrameStats() const
 	return DecalFeature ? DecalFeature->GetFrameStats() : EmptyStats;
 }
 
-EDecalProjectionMode FRenderer::GetDecalProjectionMode() const
-{
-	FConsoleVariable* Var = FConsoleVariableManager::Get().Find("r.DecalProjectionMode");
-	if (!Var)
-	{
-		return EDecalProjectionMode::ClusteredLookup;
-	}
-
-	return Var->GetInt() == static_cast<int32>(EDecalProjectionMode::VolumeDraw)
-		? EDecalProjectionMode::VolumeDraw
-		: EDecalProjectionMode::ClusteredLookup;
-}
-
 FDecalStats FRenderer::GetDecalStats() const
 {
 	FDecalStats Stats;

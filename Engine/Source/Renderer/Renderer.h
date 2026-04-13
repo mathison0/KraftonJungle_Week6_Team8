@@ -8,10 +8,11 @@
 #include "Renderer/Feature/SubUVRenderFeature.h"
 #include "Renderer/Feature/TextRenderFeature.h"
 #include "Renderer/Feature/BillboardRenderFeature.h"
+#include "Renderer/Feature/VolumeDecalRenderFeature.h"
 #include "Renderer/DecalProjectionMode.h"
 #include "Renderer/DecalStats.h"
 #include "Renderer/Feature/DecalRenderFeature.h"
-#include "Renderer/Feature/VolumeDecalRenderFeature.h"
+#include "Renderer/DecalProjectionMode.h"
 #include "Renderer/MeshBatch.h"
 #include "Renderer/RenderDevice.h"
 #include "Renderer/RenderFeatureInterfaces.h"
@@ -164,9 +165,10 @@ public:
 	FRenderDevice& GetRenderDevice() { return RenderDevice; }
 	FBillboardRenderer& GetBillboardRenderer() { return BillboardFeature->GetRenderer(); }
 	const FDecalFrameStats& GetDecalFrameStats() const;
-	EDecalProjectionMode GetDecalProjectionMode() const;
+	void SetDecalProjectionMode(EDecalProjectionMode InMode) { DecalProjectionMode = InMode; }
+	EDecalProjectionMode GetDecalProjectionMode() const { return DecalProjectionMode; }
 	FDecalStats GetDecalStats() const;
-	ID3D11SamplerState* GetDefaultSampler() const { return NormalSampler; }
+    ID3D11SamplerState* GetDefaultSampler() const { return NormalSampler; }
 
 	void SetConstantBuffers();
 	void UpdateFrameConstantBuffer(const FFrameContext& Frame, const FViewContext& View);
@@ -234,6 +236,7 @@ private:
 	std::unique_ptr<FDecalRenderFeature> DecalFeature;
 	std::unique_ptr<FVolumeDecalRenderFeature> VolumeDecalFeature;
 	std::unique_ptr<FFireBallRenderFeature> FireBallFeature;
+	EDecalProjectionMode DecalProjectionMode = EDecalProjectionMode::ClusteredLookup;
 
 	ID3D11ShaderResourceView* FolderIconSRV = nullptr;
 	ID3D11ShaderResourceView* FileIconSRV = nullptr;
