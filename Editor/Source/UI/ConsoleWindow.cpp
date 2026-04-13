@@ -41,6 +41,7 @@ FConsoleWindow::FConsoleWindow()
 	Commands.push_back("CLEAR");
 	Commands.push_back("stat fps");
 	Commands.push_back("stat memory");
+	Commands.push_back("stat decal");
 
 	AddLog("Welcome to Console.");
 }

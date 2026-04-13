@@ -11,6 +11,8 @@
 #include "Camera/Camera.h"
 #include "Core/Paths.h"
 #include "Debug/EngineLog.h"
+#include "Core/ConsoleVariableManager.h"
+#include "Renderer/DecalProjectionMode.h"
 #include "Component/CameraComponent.h"
 #include "Component/StaticMeshComponent.h"
 #include "Component/SubUVComponent.h"
@@ -313,6 +315,20 @@ void FControlPanelWindow::Render(FEditorEngine* Engine)
 		if (!SelectedActor)
 		{
 			ImGui::EndDisabled();
+		}
+
+		ImGui::SeparatorText("Decal Projection Mode");
+		FConsoleVariable* DecalProjectionModeVar = FConsoleVariableManager::Get().Find("r.DecalProjectionMode");
+		int32 DecalProjectionModeValue = DecalProjectionModeVar
+			? DecalProjectionModeVar->GetInt()
+			: static_cast<int32>(EDecalProjectionMode::ClusteredLookup);
+		const char* DecalProjectionModeLabels[] = { "Clustered Lookup", "Volume Draw" };
+		if (ImGui::Combo("Projection", &DecalProjectionModeValue, DecalProjectionModeLabels, IM_ARRAYSIZE(DecalProjectionModeLabels)))
+		{
+			if (DecalProjectionModeVar)
+			{
+				DecalProjectionModeVar->Set(DecalProjectionModeValue);
+			}
 		}
 	}
 

@@ -493,5 +493,6 @@ void FSceneCommandBuilder::BuildSceneViewData(
 		Item.TexturePath = DecalComponent->GetTexturePath();
 		Item.TextureIndex = 0;
 		Item.WorldToDecal = Item.DecalWorld.GetInverse();
+		Item.bIsFading = DecalComponent->GetFadeState() != EDecalFadeState::None;
 	}
 }

@@ -22,6 +22,7 @@
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "Asset/ObjManager.h"
+#include "Core/ConsoleVariableManager.h"
 #include "Core/Engine.h"
 #include "Debug/EngineLog.h"
 #include "ThirdParty/stb_image.h"
@@ -400,6 +401,12 @@ bool FRenderer::Initialize(HWND InHwnd, int32 Width, int32 Height)
 		return false;
 	}
 
+	VolumeDecalFeature = std::make_unique<FVolumeDecalRenderFeature>();
+	if (!VolumeDecalFeature)
+	{
+		return false;
+	}
+
 	FogFeature = std::make_unique<FFogRenderFeature>();
 	OutlineFeature = std::make_unique<FOutlineRenderFeature>();
 	DebugLineFeature = std::make_unique<FDebugLineRenderFeature>();
@@ -635,6 +642,64 @@ const FDecalFrameStats& FRenderer::GetDecalFrameStats() const
 {
 	static const FDecalFrameStats EmptyStats = {};
 	return DecalFeature ? DecalFeature->GetFrameStats() : EmptyStats;
+}
+
+EDecalProjectionMode FRenderer::GetDecalProjectionMode() const
+{
+	FConsoleVariable* Var = FConsoleVariableManager::Get().Find("r.DecalProjectionMode");
+	if (!Var)
+	{
+		return EDecalProjectionMode::ClusteredLookup;
+	}
+
+	return Var->GetInt() == static_cast<int32>(EDecalProjectionMode::VolumeDraw)
+		? EDecalProjectionMode::VolumeDraw
+		: EDecalProjectionMode::ClusteredLookup;
+}
+
+FDecalStats FRenderer::GetDecalStats() const
+{
+	FDecalStats Stats;
+	Stats.Common.Mode = GetDecalProjectionMode();
+
+	if (Stats.Common.Mode == EDecalProjectionMode::VolumeDraw)
+	{
+		if (VolumeDecalFeature)
+		{
+			Stats.Volume = VolumeDecalFeature->GetStats();
+			Stats.Common.TotalDecals = VolumeDecalFeature->GetTotalDecalCount();
+			Stats.Common.ActiveDecals = VolumeDecalFeature->GetTotalDecalCount();
+			Stats.Common.VisibleDecals = Stats.Volume.DecalDrawCalls;
+			Stats.Common.RejectedDecals = Stats.Common.ActiveDecals > Stats.Common.VisibleDecals
+				? (Stats.Common.ActiveDecals - Stats.Common.VisibleDecals)
+				: 0;
+			Stats.Common.FadeInOutDecals = VolumeDecalFeature->GetFadeInOutCount();
+			Stats.Common.BuildTimeMs = 0.0;
+			Stats.Common.CullIntersectionTimeMs = 0.0;
+			Stats.Common.ShadingPassTimeMs = VolumeDecalFeature->GetShadingPassTimeMs();
+			Stats.Common.TotalDecalTimeMs = VolumeDecalFeature->GetTotalTimeMs();
+		}
+		return Stats;
+	}
+
+	if (DecalFeature)
+	{
+		const FDecalFrameStats& FrameStats = DecalFeature->GetFrameStats();
+		Stats.ClusteredLookup = DecalFeature->GetClusteredStats();
+		Stats.Common.TotalDecals = FrameStats.InputItemCount;
+		Stats.Common.ActiveDecals = FrameStats.InputItemCount;
+		Stats.Common.VisibleDecals = FrameStats.VisibleItemCount;
+		Stats.Common.RejectedDecals = FrameStats.InputItemCount > FrameStats.VisibleItemCount
+			? (FrameStats.InputItemCount - FrameStats.VisibleItemCount)
+			: 0;
+		Stats.Common.BuildTimeMs = FrameStats.VisibleBuildTimeMs;
+		Stats.Common.CullIntersectionTimeMs = FrameStats.ClusterBuildTimeMs;
+		Stats.Common.ShadingPassTimeMs = FrameStats.ShadingPassTimeMs;
+		Stats.Common.TotalDecalTimeMs = FrameStats.TotalDecalTimeMs;
+		Stats.Common.FadeInOutDecals = FrameStats.FadeInOutCount;
+	}
+
+	return Stats;
 }
 
 size_t FRenderer::GetPrevCommandCount() const
@@ -1327,6 +1392,7 @@ void FRenderer::Release()
 	if (SubUVFeature) SubUVFeature->Release();
 	if (BillboardFeature) BillboardFeature->Release();
 	if (DecalFeature) DecalFeature->Release();
+	if (VolumeDecalFeature) VolumeDecalFeature->Release();
 	if (FireBallFeature) FireBallFeature->Release();
 	OutlineFeature.reset();
 	DebugLineFeature.reset();
@@ -1335,6 +1401,7 @@ void FRenderer::Release()
 	SubUVFeature.reset();
 	BillboardFeature.reset();
 	DecalFeature.reset();
+	VolumeDecalFeature.reset();
 	FireBallFeature.reset();
 	ShaderManager.Release(); FShaderMap::Get().Clear(); FMaterialManager::Get().Clear();
 	if (NormalSampler) { NormalSampler->Release(); NormalSampler = nullptr; }

@@ -8,7 +8,10 @@
 #include "Renderer/Feature/SubUVRenderFeature.h"
 #include "Renderer/Feature/TextRenderFeature.h"
 #include "Renderer/Feature/BillboardRenderFeature.h"
+#include "Renderer/DecalProjectionMode.h"
+#include "Renderer/DecalStats.h"
 #include "Renderer/Feature/DecalRenderFeature.h"
+#include "Renderer/Feature/VolumeDecalRenderFeature.h"
 #include "Renderer/MeshBatch.h"
 #include "Renderer/RenderDevice.h"
 #include "Renderer/RenderFeatureInterfaces.h"
@@ -154,12 +157,15 @@ public:
 	FOutlineRenderFeature* GetOutlineFeature() const { return OutlineFeature.get(); }
 	FDebugLineRenderFeature* GetDebugLineFeature() const { return DebugLineFeature.get(); }
 	FDecalRenderFeature* GetDecalFeature() const { return DecalFeature.get(); }
+	FVolumeDecalRenderFeature* GetVolumeDecalFeature() const { return VolumeDecalFeature.get(); }
 	FFireBallRenderFeature* GetFireBallFeature() const { return FireBallFeature.get(); }
 	FSceneRenderer& GetSceneRenderer() { return SceneRenderer; }
 	FScreenUIRenderer& GetScreenUIRenderer() { return ScreenUIRenderer; }
 	FRenderDevice& GetRenderDevice() { return RenderDevice; }
 	FBillboardRenderer& GetBillboardRenderer() { return BillboardFeature->GetRenderer(); }
 	const FDecalFrameStats& GetDecalFrameStats() const;
+	EDecalProjectionMode GetDecalProjectionMode() const;
+	FDecalStats GetDecalStats() const;
 	ID3D11SamplerState* GetDefaultSampler() const { return NormalSampler; }
 
 	void SetConstantBuffers();
@@ -179,6 +185,7 @@ private:
 	friend class FOutlineRenderFeature;
 	friend class FDebugLineRenderFeature;
 	friend class FDecalRenderFeature;
+	friend class FVolumeDecalRenderFeature;
 	friend class FScreenUIRenderer;
 	friend class FBillboardRenderFeature;
 	bool CreateConstantBuffers();
@@ -225,6 +232,7 @@ private:
 	std::unique_ptr<FOutlineRenderFeature> OutlineFeature;
 	std::unique_ptr<FDebugLineRenderFeature> DebugLineFeature;
 	std::unique_ptr<FDecalRenderFeature> DecalFeature;
+	std::unique_ptr<FVolumeDecalRenderFeature> VolumeDecalFeature;
 	std::unique_ptr<FFireBallRenderFeature> FireBallFeature;
 
 	ID3D11ShaderResourceView* FolderIconSRV = nullptr;
