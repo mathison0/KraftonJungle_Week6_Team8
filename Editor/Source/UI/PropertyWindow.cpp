@@ -104,6 +104,65 @@ namespace
 		return Extension == ".png" || Extension == ".jpg" || Extension == ".jpeg" || Extension == ".dds";
 	}
 
+	USceneComponent* GetComponentTreeParentSceneComponent(UActorComponent* Component)
+	{
+		if (!Component)
+		{
+			return nullptr;
+		}
+
+		if (Component->IsA(USceneComponent::StaticClass()))
+		{
+			return static_cast<USceneComponent*>(Component)->GetAttachParent();
+		}
+
+		if (Component->IsA(UMovementComponent::StaticClass()))
+		{
+			return static_cast<UMovementComponent*>(Component)->GetUpdatedComponent();
+		}
+
+		return nullptr;
+	}
+
+	bool ShouldDrawUnderSceneComponent(UActorComponent* Component, USceneComponent* SceneComponent)
+	{
+		if (!Component || !SceneComponent || Component->IsA(USceneComponent::StaticClass()))
+		{
+			return false;
+		}
+
+		if (Component->IsA(UMovementComponent::StaticClass()))
+		{
+			return static_cast<UMovementComponent*>(Component)->GetUpdatedComponent() == SceneComponent;
+		}
+
+		return false;
+	}
+
+	bool HasAttachedNonSceneChildren(USceneComponent* SceneComponent)
+	{
+		if (!SceneComponent)
+		{
+			return false;
+		}
+
+		AActor* OwnerActor = SceneComponent->GetOwner();
+		if (!OwnerActor)
+		{
+			return false;
+		}
+
+		for (UActorComponent* Component : OwnerActor->GetComponents())
+		{
+			if (ShouldDrawUnderSceneComponent(Component, SceneComponent))
+			{
+				return true;
+			}
+		}
+
+		return false;
+	}
+
 	bool DrawTexturePathCombo(const char* Label, const std::wstring& CurrentPath, const std::function<void(const std::wstring&)>& OnSelected)
 	{
 		const std::string CurrentFileName = CurrentPath.empty() ? "None" : std::filesystem::path(CurrentPath).filename().string();
@@ -176,6 +235,12 @@ USceneComponent* FPropertyWindow::GetSelectedSceneComponent(AActor* SelectedActo
 
 	if (!SelectedComponent->IsA(USceneComponent::StaticClass()))
 	{
+		if (SelectedComponent->IsA(UMovementComponent::StaticClass()))
+		{
+			USceneComponent* UpdatedComponent = static_cast<UMovementComponent*>(SelectedComponent)->GetUpdatedComponent();
+			return IsComponentOwnedByActor(SelectedActor, UpdatedComponent) ? UpdatedComponent : nullptr;
+		}
+
 		return nullptr;
 	}
 
@@ -491,7 +556,7 @@ void FPropertyWindow::DrawRotatingMovementComponentDetails(URotatingMovementComp
 	}
 }
 
-void FPropertyWindow::DrawProjectileMovementComponentDetails(UProjectileMovementComponent* ProjectileMovementComponent)
+void FPropertyWindow::DrawProjectileMovementComponentDetails(UProjectileMovementComponent* ProjectileMovementComponent, FEditorEngine* Engine)
 {
 	if (!ProjectileMovementComponent)
 	{
@@ -519,9 +584,34 @@ void FPropertyWindow::DrawProjectileMovementComponentDetails(UProjectileMovement
 		ProjectileMovementComponent->SetMaxSpeed(MaxSpeed);
 	}
 
-	if (ImGui::Button("Launch"))
+	bool bAutoStartSimulation = ProjectileMovementComponent->IsAutoStartSimulationEnabled();
+	if (ImGui::Checkbox("Auto Start Simulation", &bAutoStartSimulation))
 	{
-		ProjectileMovementComponent->LaunchWithVelocity(ProjectileMovementComponent->GetVelocity());
+		ProjectileMovementComponent->SetAutoStartSimulation(bAutoStartSimulation);
+		if (!bAutoStartSimulation)
+		{
+			ProjectileMovementComponent->StopSimulation();
+		}
+	}
+
+	ImGui::TextDisabled(
+		"Simulation: %s",
+		ProjectileMovementComponent->IsSimulationEnabled() ? "Running" : "Stopped");
+
+	if (!ProjectileMovementComponent->IsAutoStartSimulationEnabled())
+	{
+		const bool bIsPIEActive = Engine && Engine->IsPIEActive() && !Engine->IsPIEPaused();
+		ImGui::BeginDisabled(!bIsPIEActive);
+		if (ImGui::Button("Start Simulation In PIE"))
+		{
+			ProjectileMovementComponent->StartSimulation();
+		}
+		ImGui::EndDisabled();
+
+		if (!bIsPIEActive)
+		{
+			ImGui::TextDisabled("Manual start is available while PIE is running.");
+		}
 	}
 }
 
@@ -827,11 +917,7 @@ void FPropertyWindow::DrawDetailsSection(UActorComponent* Component, FEditorEngi
 		ImGui::BeginDisabled(!bCanDelete);
 		if (ImGui::Button("Delete Component"))
 		{
-			USceneComponent* ParentSceneComponent = nullptr;
-			if (Component->IsA(USceneComponent::StaticClass()))
-			{
-				ParentSceneComponent = static_cast<USceneComponent*>(Component)->GetAttachParent();
-			}
+			USceneComponent* ParentSceneComponent = GetComponentTreeParentSceneComponent(Component);
 
 			if (OwnerActor->DestroyInstanceComponent(Component))
 			{
@@ -894,7 +980,7 @@ void FPropertyWindow::DrawDetailsSection(UActorComponent* Component, FEditorEngi
 
 	if (Component->IsA(UProjectileMovementComponent::StaticClass()))
 	{
-		DrawProjectileMovementComponentDetails(static_cast<UProjectileMovementComponent*>(Component));
+		DrawProjectileMovementComponentDetails(static_cast<UProjectileMovementComponent*>(Component), Engine);
 	}
 
 	if (Component->IsA(UStaticMeshComponent::StaticClass()))
@@ -962,6 +1048,10 @@ bool FPropertyWindow::AddComponentToActor(AActor* SelectedActor, UClass* Compone
 		{
 			SelectedActor->SetRootComponent(NewSceneComponent);
 		}
+	}
+	else if (NewComponent->IsA(UMovementComponent::StaticClass()) && SelectedSceneComponent)
+	{
+		static_cast<UMovementComponent*>(NewComponent)->SetUpdatedComponent(SelectedSceneComponent);
 	}
 
 	if (!NewComponent->IsRegistered())
@@ -1064,12 +1154,14 @@ void FPropertyWindow::DrawSceneComponentNode(USceneComponent* Component, int32 D
 	const FString ComponentName = Component->GetName().empty() ? ClassName : Component->GetName();
 	const bool bIsRoot = (Component->GetAttachParent() == nullptr);
 	const TArray<USceneComponent*>& Children = Component->GetAttachChildren();
+	const bool bHasAttachedNonSceneChildren = HasAttachedNonSceneChildren(Component);
+	const bool bHasTreeChildren = !Children.empty() || bHasAttachedNonSceneChildren;
 	ImGuiTreeNodeFlags Flags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_SpanAvailWidth;
 	if (SelectedComponent == Component)
 	{
 		Flags |= ImGuiTreeNodeFlags_Selected;
 	}
-	if (Children.empty())
+	if (!bHasTreeChildren)
 	{
 		Flags |= ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen;
 	}
@@ -1087,13 +1179,43 @@ void FPropertyWindow::DrawSceneComponentNode(USceneComponent* Component, int32 D
 		SelectedComponent = Component;
 	}
 
-	if (bOpen && !Children.empty())
+	if (bOpen)
 	{
 		for (USceneComponent* Child : Children)
 		{
 			DrawSceneComponentNode(Child, Depth + 1);
 		}
-		ImGui::TreePop();
+
+		DrawAttachedNonSceneComponentNodes(Component, Depth + 1);
+
+		if (bHasTreeChildren)
+		{
+			ImGui::TreePop();
+		}
+	}
+}
+
+void FPropertyWindow::DrawAttachedNonSceneComponentNodes(USceneComponent* SceneComponent, int32 Depth)
+{
+	if (!SceneComponent)
+	{
+		return;
+	}
+
+	AActor* OwnerActor = SceneComponent->GetOwner();
+	if (!OwnerActor)
+	{
+		return;
+	}
+
+	for (UActorComponent* Component : OwnerActor->GetComponents())
+	{
+		if (!ShouldDrawUnderSceneComponent(Component, SceneComponent))
+		{
+			continue;
+		}
+
+		DrawNonSceneComponentEntry(Component);
 	}
 }
 
@@ -1106,9 +1228,20 @@ void FPropertyWindow::DrawNonSceneComponentEntry(UActorComponent* Component)
 
 	const FString ClassName = Component->GetClass() ? Component->GetClass()->GetName() : "UActorComponent";
 	const FString ComponentName = Component->GetName().empty() ? ClassName : Component->GetName();
-	const FString Label = ComponentName + " (" + ClassName + ")";
+	ImGuiTreeNodeFlags Flags = ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen | ImGuiTreeNodeFlags_SpanAvailWidth;
+	if (SelectedComponent == Component)
+	{
+		Flags |= ImGuiTreeNodeFlags_Selected;
+	}
 
-	if (ImGui::Selectable(Label.c_str(), SelectedComponent == Component))
+	ImGui::TreeNodeEx(
+		Component,
+		Flags,
+		"%s (%s)",
+		ComponentName.c_str(),
+		ClassName.c_str());
+
+	if (ImGui::IsItemClicked() && !ImGui::IsItemToggledOpen())
 	{
 		SelectedComponent = Component;
 	}
@@ -1135,6 +1268,11 @@ void FPropertyWindow::DrawComponentSection(AActor* SelectedActor)
 	for (UActorComponent* Component : SelectedActor->GetComponents())
 	{
 		if (!Component || Component->IsA(USceneComponent::StaticClass()))
+		{
+			continue;
+		}
+
+		if (GetComponentTreeParentSceneComponent(Component) != nullptr)
 		{
 			continue;
 		}
