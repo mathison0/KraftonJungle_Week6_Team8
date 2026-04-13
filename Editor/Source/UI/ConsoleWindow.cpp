@@ -42,6 +42,7 @@ FConsoleWindow::FConsoleWindow()
 	Commands.push_back("stat fps");
 	Commands.push_back("stat memory");
 	Commands.push_back("stat decal");
+	Commands.push_back("stat none");
 
 	AddLog("Welcome to Console.");
 }
@@ -215,7 +216,17 @@ void FConsoleWindow::ExecCommand(const char* CommandLine)
 	}
 	else if (Stricmp(CommandLine, "stat memory") == 0)
 	{
-		if (DebugState) DebugState->Memory = !DebugState->Memory;
+		if (DebugState)
+		{
+			DebugState->StatDisplayMode = EStatDisplayMode::Memory;
+		}
+	}
+	else if (Stricmp(CommandLine, "stat decal") == 0)
+	{
+		if (DebugState)
+		{
+			DebugState->StatDisplayMode = EStatDisplayMode::Decal;
+		}
 	}
 	else if (Stricmp(CommandLine, "stat fps") == 0)
 	{
@@ -226,7 +237,7 @@ void FConsoleWindow::ExecCommand(const char* CommandLine)
 		if (DebugState)
 		{
 			DebugState->FPS = false;
-			DebugState->Memory = false;
+			DebugState->StatDisplayMode = EStatDisplayMode::None;
 		}
 	}
 	else if (CommandHandler)

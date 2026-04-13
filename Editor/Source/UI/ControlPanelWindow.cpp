@@ -11,8 +11,6 @@
 #include "Camera/Camera.h"
 #include "Core/Paths.h"
 #include "Debug/EngineLog.h"
-#include "Core/ConsoleVariableManager.h"
-#include "Renderer/DecalProjectionMode.h"
 #include "Component/CameraComponent.h"
 #include "Component/StaticMeshComponent.h"
 #include "Component/SubUVComponent.h"
@@ -318,18 +316,24 @@ void FControlPanelWindow::Render(FEditorEngine* Engine)
 		}
 
 		ImGui::SeparatorText("Decal Projection Mode");
-		FConsoleVariable* DecalProjectionModeVar = FConsoleVariableManager::Get().Find("r.DecalProjectionMode");
-		int32 DecalProjectionModeValue = DecalProjectionModeVar
-			? DecalProjectionModeVar->GetInt()
-			: static_cast<int32>(EDecalProjectionMode::ClusteredLookup);
-		const char* DecalProjectionModeLabels[] = { "Clustered Lookup", "Volume Draw" };
-		if (ImGui::Combo("Projection", &DecalProjectionModeValue, DecalProjectionModeLabels, IM_ARRAYSIZE(DecalProjectionModeLabels)))
+
+		if (FRenderer* Renderer = Engine->GetRenderer())
 		{
-			if (DecalProjectionModeVar)
+			const EDecalProjectionMode Mode = Renderer->GetDecalProjectionMode();
+			if (ImGui::RadioButton("Volume Draw", Mode == EDecalProjectionMode::VolumeDraw))
 			{
-				DecalProjectionModeVar->Set(DecalProjectionModeValue);
+				Renderer->SetDecalProjectionMode(EDecalProjectionMode::VolumeDraw);
+			}
+			if (ImGui::RadioButton("Clustered Lookup", Mode == EDecalProjectionMode::ClusteredLookup))
+			{
+				Renderer->SetDecalProjectionMode(EDecalProjectionMode::ClusteredLookup);
 			}
 		}
+		else
+		{
+			ImGui::TextDisabled("Renderer unavailable.");
+		}
+
 	}
 
 	ImGui::End();
