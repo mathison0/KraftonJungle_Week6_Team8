@@ -10,6 +10,7 @@ public:
 	DECLARE_RTTI(UProjectileMovementComponent, UMovementComponent)
 
 	void PostConstruct() override;
+	void BeginPlay() override;
 	void Tick(float DeltaTime) override;
 
 	void LaunchWithVelocity(const FVector& InVelocity);
@@ -30,6 +31,7 @@ private:
 	FVector Velocity{ FVector::ZeroVector };
 	float GravityScale = 1.0f;
 	float MaxSpeed = 0.0f;
+	bool bSimulationEnabled = false;
 
 	static constexpr float GravityZ = -980.0f;
 };

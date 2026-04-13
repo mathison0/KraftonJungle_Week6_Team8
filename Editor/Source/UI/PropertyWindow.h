@@ -33,6 +33,9 @@ private:
 	void DrawNonSceneComponentEntry(UActorComponent* Component);
 	void DrawDetailsSection(UActorComponent* Component, FEditorEngine* Engine);
 	void DrawSceneComponentDetails(USceneComponent* SceneComponent);
+	void DrawMovementComponentDetails(class UMovementComponent* MovementComponent);
+	void DrawRotatingMovementComponentDetails(class URotatingMovementComponent* RotatingMovementComponent);
+	void DrawProjectileMovementComponentDetails(class UProjectileMovementComponent* ProjectileMovementComponent);
 	void DrawStaticMeshComponentDetails(class UStaticMeshComponent* MeshComponent);
 	void DrawTextComponentDetails(class UTextRenderComponent* TextComponent);
 	void DrawSubUVComponentDetails(class USubUVComponent* SubUVComponent);

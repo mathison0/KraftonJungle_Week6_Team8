@@ -8,18 +8,30 @@ IMPLEMENT_RTTI(UProjectileMovementComponent, UMovementComponent)
 void UProjectileMovementComponent::PostConstruct()
 {
 	UMovementComponent::PostConstruct();
-	SetComponentTickEnabled(false);
+}
+
+void UProjectileMovementComponent::BeginPlay()
+{
+	UMovementComponent::BeginPlay();
+
+	bSimulationEnabled = IsComponentTickEnabled() && !Velocity.IsNearlyZero();
 }
 
 void UProjectileMovementComponent::LaunchWithVelocity(const FVector& InVelocity)
 {
 	Velocity = InVelocity;
+	bSimulationEnabled = !Velocity.IsNearlyZero();
 	SetComponentTickEnabled(true);
 }
 
 void UProjectileMovementComponent::Tick(float DeltaTime)
 {
 	UMovementComponent::Tick(DeltaTime);
+
+	if (!bSimulationEnabled)
+	{
+		return;
+	}
 
 	if (ShouldSkipUpdate(DeltaTime))
 	{
@@ -51,6 +63,7 @@ void UProjectileMovementComponent::DuplicateShallow(UObject* DuplicatedObject, F
 	Duplicated->Velocity = Velocity;
 	Duplicated->GravityScale = GravityScale;
 	Duplicated->MaxSpeed = MaxSpeed;
+	Duplicated->bSimulationEnabled = false;
 }
 
 void UProjectileMovementComponent::Serialize(FArchive& Ar)

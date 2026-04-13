@@ -6,8 +6,6 @@ IMPLEMENT_RTTI(URotatingMovementComponent, UMovementComponent)
 
 void URotatingMovementComponent::Tick(float DeltaTime)
 {
-	UMovementComponent::Tick(DeltaTime);
-
 	if (ShouldSkipUpdate(DeltaTime))
 	{
 		return;

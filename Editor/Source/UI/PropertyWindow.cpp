@@ -14,6 +14,9 @@
 #include "Component/UUIDBillboardComponent.h"
 #include "Component/BillboardComponent.h"
 #include "Component/MoveComponent.h"
+#include "Component/MovementComponent.h"
+#include "Component/RotatingMovementComponent.h"
+#include "Component/ProjectileMovementComponent.h"
 #include "Level/Level.h"
 #include "Core/Paths.h"
 #include "Object/Class.h"
@@ -43,7 +46,9 @@ namespace
 		{ "Text Component", "TextComponent", &UTextRenderComponent::StaticClass },
 		{ "SubUV Component", "SubUVComponent", &USubUVComponent::StaticClass },
 		{ "BillboardComponent", "BillboardComponent", &UBillboardComponent::StaticClass},
-		{ "Move Component", "MoveComponent", &UMoveComponent::StaticClass}
+		{ "Move Component", "MoveComponent", &UMoveComponent::StaticClass},
+		{ "Rotating Movement Component", "RotatingMovementComponent", &URotatingMovementComponent::StaticClass },
+		{ "Projectile Movement Component", "ProjectileMovementComponent", &UProjectileMovementComponent::StaticClass }
 	};
 
 	FString BuildUniqueComponentName(AActor* SelectedActor, const FString& BaseName)
@@ -405,6 +410,121 @@ void FPropertyWindow::DrawStaticMeshComponentDetails(UStaticMeshComponent* MeshC
 	}
 }
 
+void FPropertyWindow::DrawMovementComponentDetails(UMovementComponent* MovementComponent)
+{
+	if (!MovementComponent)
+	{
+		return;
+	}
+
+	ImGui::Spacing();
+	ImGui::TextDisabled("Movement");
+
+	AActor* OwnerActor = MovementComponent->GetOwner();
+	const char* CurrentLabel = "None";
+	FString SelectedName;
+	if (USceneComponent* UpdatedComponent = MovementComponent->GetUpdatedComponent())
+	{
+		SelectedName = UpdatedComponent->GetName().empty() ? "SceneComponent" : UpdatedComponent->GetName();
+		CurrentLabel = SelectedName.c_str();
+	}
+
+	ImGui::PushItemWidth(-1.0f);
+	if (ImGui::BeginCombo("Updated Component", CurrentLabel))
+	{
+		bool bSelectedRootFallback = (MovementComponent->GetUpdatedComponent() == nullptr);
+		if (ImGui::Selectable("Root Component (Auto)", bSelectedRootFallback))
+		{
+			MovementComponent->SetUpdatedComponent(nullptr);
+		}
+		if (bSelectedRootFallback)
+		{
+			ImGui::SetItemDefaultFocus();
+		}
+
+		if (OwnerActor)
+		{
+			for (UActorComponent* Component : OwnerActor->GetComponents())
+			{
+				if (!Component || !Component->IsA(USceneComponent::StaticClass()))
+				{
+					continue;
+				}
+
+				USceneComponent* SceneComponent = static_cast<USceneComponent*>(Component);
+				const FString SceneComponentName = SceneComponent->GetName().empty()
+					? SceneComponent->GetClass()->GetName()
+					: SceneComponent->GetName();
+				const bool bSelected = (MovementComponent->GetUpdatedComponent() == SceneComponent);
+				if (ImGui::Selectable(SceneComponentName.c_str(), bSelected))
+				{
+					MovementComponent->SetUpdatedComponent(SceneComponent);
+				}
+				if (bSelected)
+				{
+					ImGui::SetItemDefaultFocus();
+				}
+			}
+		}
+
+		ImGui::EndCombo();
+	}
+	ImGui::PopItemWidth();
+}
+
+void FPropertyWindow::DrawRotatingMovementComponentDetails(URotatingMovementComponent* RotatingMovementComponent)
+{
+	if (!RotatingMovementComponent)
+	{
+		return;
+	}
+
+	ImGui::Spacing();
+	ImGui::TextDisabled("Rotating Movement");
+
+	const FRotator RotationRate = RotatingMovementComponent->GetRotationRate();
+	FVector NewRotationRate(RotationRate.Pitch, RotationRate.Yaw, RotationRate.Roll);
+	if (DrawVector3Control("Rotation Rate (Pitch/Yaw/Roll)", NewRotationRate, NewRotationRate, 0.5f, "%.2f"))
+	{
+		RotatingMovementComponent->SetRotationRate(
+			FRotator(NewRotationRate.X, NewRotationRate.Y, NewRotationRate.Z));
+	}
+}
+
+void FPropertyWindow::DrawProjectileMovementComponentDetails(UProjectileMovementComponent* ProjectileMovementComponent)
+{
+	if (!ProjectileMovementComponent)
+	{
+		return;
+	}
+
+	ImGui::Spacing();
+	ImGui::TextDisabled("Projectile Movement");
+
+	FVector NewVelocity = ProjectileMovementComponent->GetVelocity();
+	if (DrawVector3Control("Velocity", ProjectileMovementComponent->GetVelocity(), NewVelocity, 1.0f, "%.2f"))
+	{
+		ProjectileMovementComponent->SetVelocity(NewVelocity);
+	}
+
+	float GravityScale = ProjectileMovementComponent->GetGravityScale();
+	if (ImGui::DragFloat("Gravity Scale", &GravityScale, 0.01f, -10.0f, 10.0f, "%.2f"))
+	{
+		ProjectileMovementComponent->SetGravityScale(GravityScale);
+	}
+
+	float MaxSpeed = ProjectileMovementComponent->GetMaxSpeed();
+	if (ImGui::DragFloat("Max Speed", &MaxSpeed, 1.0f, 0.0f, 100000.0f, "%.2f"))
+	{
+		ProjectileMovementComponent->SetMaxSpeed(MaxSpeed);
+	}
+
+	if (ImGui::Button("Launch"))
+	{
+		ProjectileMovementComponent->LaunchWithVelocity(ProjectileMovementComponent->GetVelocity());
+	}
+}
+
 void FPropertyWindow::DrawTextComponentDetails(UTextRenderComponent* TextComponent)
 {
 	if (!TextComponent)
@@ -760,6 +880,21 @@ void FPropertyWindow::DrawDetailsSection(UActorComponent* Component, FEditorEngi
 	if (Component->IsA(USceneComponent::StaticClass()))
 	{
 		DrawSceneComponentDetails(static_cast<USceneComponent*>(Component));
+	}
+
+	if (Component->IsA(UMovementComponent::StaticClass()))
+	{
+		DrawMovementComponentDetails(static_cast<UMovementComponent*>(Component));
+	}
+
+	if (Component->IsA(URotatingMovementComponent::StaticClass()))
+	{
+		DrawRotatingMovementComponentDetails(static_cast<URotatingMovementComponent*>(Component));
+	}
+
+	if (Component->IsA(UProjectileMovementComponent::StaticClass()))
+	{
+		DrawProjectileMovementComponentDetails(static_cast<UProjectileMovementComponent*>(Component));
 	}
 
 	if (Component->IsA(UStaticMeshComponent::StaticClass()))
