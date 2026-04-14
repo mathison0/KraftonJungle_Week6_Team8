@@ -478,9 +478,6 @@ void FEditorUI::LoadEditorSettings()
 
         GetPrivateProfileStringW(Sec, L"SF.Fog", L"1", Buf, 64, Path.c_str());
         S.ShowFlags.SetFlag(EEngineShowFlags::SF_Fog, _wtoi(Buf) != 0);
-
-        GetPrivateProfileStringW(Sec, L"SF.DepthView", L"0", Buf, 64, Path.c_str());
-        S.ShowFlags.SetFlag(EEngineShowFlags::SF_DepthView, _wtoi(Buf) != 0);
     }
 
     bool bAnyDebugDrawEnabled = false;
@@ -595,8 +592,6 @@ void FEditorUI::SaveEditorSettings()
 
         WritePrivateProfileStringW(Sec, L"SF.Fog", S.ShowFlags.HasFlag(EEngineShowFlags::SF_Fog) ? L"1" : L"0",
                                    Path.c_str());
-        WritePrivateProfileStringW(Sec, L"SF.DepthView",
-                                   S.ShowFlags.HasFlag(EEngineShowFlags::SF_DepthView) ? L"1" : L"0", Path.c_str());
         WritePrivateProfileStringW(Sec, L"SF.FXAA", S.ShowFlags.HasFlag(EEngineShowFlags::SF_FXAA) ? L"1" : L"0",
                                    Path.c_str());
     }
@@ -835,7 +830,7 @@ void FEditorUI::Render()
 
             ImGui::EndMenu();
         }
-        if (ImGui::BeginMenu("View"))
+        if (ImGui::BeginMenu("Show"))
         {
             if (Engine)
             {
@@ -855,7 +850,6 @@ void FEditorUI::Render()
                         TargetEntry = &ViewportRegistry.GetEntries().front();
 
                     FShowFlags &ShowFlags = TargetEntry->LocalState.ShowFlags;
-                    ImGui::SeparatorText("Show Flags");
                     auto ShowFlagCheckbox = [&](const char *Label, EEngineShowFlags Flag) {
                         bool bValue = ShowFlags.HasFlag(Flag);
                         if (ImGui::Checkbox(Label, &bValue))
@@ -880,12 +874,12 @@ void FEditorUI::Render()
                         }
                     };
 
+                    ImGui::Dummy(ImVec2(0.0f, 5.0f));
+                    ImGui::SeparatorText("Common Show Flags");
+                    ImGui::Dummy(ImVec2(0.0f, 5.0f));
+
                     ShowFlagCheckbox("Primitives", EEngineShowFlags::SF_Primitives);
-                    ShowFlagCheckbox("UUID", EEngineShowFlags::SF_UUID);
-                    ShowFlagCheckbox("Fog", EEngineShowFlags::SF_Fog);
-                    ShowFlagCheckbox("Decal", EEngineShowFlags::SF_Decal);
-                    ShowFlagCheckbox("FXAA", EEngineShowFlags::SF_FXAA);
-                    ShowFlagCheckbox("Depth View", EEngineShowFlags::SF_DepthView);
+                    ShowFlagCheckbox("UUID Text", EEngineShowFlags::SF_UUID);
 
                     bool bDebugDraw = ShowFlags.HasFlag(EEngineShowFlags::SF_DebugDraw);
                     if (ImGui::Checkbox("Debug Line", &bDebugDraw))
@@ -924,13 +918,14 @@ void FEditorUI::Render()
 
                     ImGui::Unindent();
 
-                    ImGui::SeparatorText("Grid");
                     bool bShowGrid = TargetEntry->LocalState.bShowGrid;
-                    if (ImGui::Checkbox("Show Grid", &bShowGrid))
+                    if (ImGui::Checkbox("Grid", &bShowGrid))
                     {
                         TargetEntry->LocalState.bShowGrid = bShowGrid;
                         SaveEditorSettings();
                     }
+
+                    ImGui::BeginDisabled(!TargetEntry->LocalState.bShowGrid);
                     if (ImGui::SliderFloat("Grid Size", &TargetEntry->LocalState.GridSize, 1.0f, 100.0f, "%.1f"))
                     {
                         SaveEditorSettings();
@@ -941,6 +936,15 @@ void FEditorUI::Render()
                     {
                         SaveEditorSettings();
                     }
+                    ImGui::EndDisabled();
+
+                    ImGui::Dummy(ImVec2(0.0f, 5.0f));
+                    ImGui::SeparatorText("Post-Processing Show Flags");
+                    ImGui::Dummy(ImVec2(0.0f, 5.0f));
+
+                    ShowFlagCheckbox("Anti-Aliasing (FXAA)", EEngineShowFlags::SF_FXAA);
+                    ShowFlagCheckbox("Height Fog", EEngineShowFlags::SF_Fog);
+                    ShowFlagCheckbox("Decal Projection", EEngineShowFlags::SF_Decal);
                 }
             }
             ImGui::EndMenu();

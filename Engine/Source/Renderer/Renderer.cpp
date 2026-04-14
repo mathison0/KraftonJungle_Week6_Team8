@@ -540,7 +540,9 @@ bool FRenderer::RenderGameFrame(const FGameFrameRequest &Request)
     DecalTextureCache.ResolveTextureArray(GetDevice(), SceneViewData);
     BuildDebugLinePassInputs(Request.DebugInputs, SceneViewData.DebugInputs.LinePass);
 
-    if (!SceneRenderer.RenderSceneView(*this, Targets, SceneViewData, Request.ClearColor, Request.bForceWireframe,
+    const bool bForceWireframe = Request.bForceWireframe || Request.RenderMode == ERenderMode::Wireframe;
+
+    if (!SceneRenderer.RenderSceneView(*this, Targets, SceneViewData, Request.ClearColor, bForceWireframe,
                                        Request.WireframeMaterial))
     {
         return false;
@@ -548,6 +550,10 @@ bool FRenderer::RenderGameFrame(const FGameFrameRequest &Request)
 
     FViewportCompositeItem FullscreenItem;
     FullscreenItem.Mode = Request.CompositeMode;
+    if (Request.RenderMode == ERenderMode::SceneDepth)
+    {
+        FullscreenItem.Mode = EViewportCompositeMode::DepthView;
+    }
     FullscreenItem.SceneColorSRV = Targets.SceneColorSRV;
     FullscreenItem.SceneDepthSRV = Targets.SceneDepthSRV;
     FullscreenItem.VisualizationParams.NearZ = View.NearZ;
@@ -618,8 +624,10 @@ bool FRenderer::RenderEditorFrame(const FEditorFrameRequest &Request)
         SceneViewData.PostProcessInputs.bOutlineEnabled = ScenePass.OutlineRequest.bEnabled;
         BuildDebugLinePassInputs(ScenePass.DebugInputs, SceneViewData.DebugInputs.LinePass);
 
+        const bool bForceWireframe = ScenePass.bForceWireframe || ScenePass.RenderMode == ERenderMode::Wireframe;
+
         if (!SceneRenderer.RenderSceneView(*this, Targets, SceneViewData, ScenePass.ClearColor,
-                                           ScenePass.bForceWireframe, ScenePass.WireframeMaterial))
+                                           bForceWireframe, ScenePass.WireframeMaterial))
         {
             continue;
         }

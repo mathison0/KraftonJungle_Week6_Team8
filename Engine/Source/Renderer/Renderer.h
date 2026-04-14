@@ -10,6 +10,7 @@
 #include "Renderer/Mesh/MeshBatch.h"
 #include "Renderer/RHI/RenderDevice.h"
 #include "Renderer/Common/RenderFeatureInterfaces.h"
+#include "Renderer/Common/RenderMode.h"
 #include "Renderer/Common/RenderFrameContext.h"
 #include "Renderer/RHI/RenderStateManager.h"
 #include "Renderer/Common/SceneRenderTargets.h"
@@ -69,6 +70,7 @@ struct FGameFrameRequest
 	FSceneViewRenderRequest SceneView;
 	TArray<FMeshBatch> AdditionalMeshBatches;
 	FDebugSceneBuildInputs DebugInputs;
+	ERenderMode RenderMode = ERenderMode::Lighting;
 	EViewportCompositeMode CompositeMode = EViewportCompositeMode::SceneColor;
 	bool bForceWireframe = false;
 	FMaterial* WireframeMaterial = nullptr;
@@ -87,6 +89,7 @@ struct FViewportScenePassRequest
 	TArray<FMeshBatch> AdditionalMeshBatches;
 	FOutlineRenderRequest OutlineRequest;
 	FDebugSceneBuildInputs DebugInputs;
+	ERenderMode RenderMode = ERenderMode::Lighting;
 	bool bForceWireframe = false;
 	FMaterial* WireframeMaterial = nullptr;
 	float ClearColor[4] = { 0.1f, 0.1f, 0.1f, 1.0f };
