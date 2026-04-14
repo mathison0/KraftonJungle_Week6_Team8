@@ -1,7 +1,8 @@
-﻿#include "Renderer/Renderer.h"
+#include "Renderer/Renderer.h"
 #include "Actor/Actor.h"
 #include "Component/DecalComponent.h"
 #include "Component/StaticMeshComponent.h"
+#include "Component/UUIDBillboardComponent.h"
 #include "Core/Paths.h"
 #include "Debug/DebugDrawManager.h"
 #include "Renderer/Common/SceneTargetManager.h"
@@ -60,31 +61,37 @@ void BuildDebugLinePassInputs(const FDebugPrimitiveList &Primitives, FDebugLineP
     }
 }
 
-void AppendActorSceneBVHDebug(AActor *BoundsActor, UWorld *World, FDebugPrimitiveList &OutPrimitives)
+void AppendActorSceneBVHDebug(AActor *BoundsActor, UWorld *World, const FShowFlags &ShowFlags,
+                               FDebugPrimitiveList &OutPrimitives)
 {
     if (!BoundsActor || !World)
     {
         return;
     }
 
-    UStaticMeshComponent *MeshComp = nullptr;
-    for (UActorComponent *Comp : BoundsActor->GetComponents())
-    {
-        if (Comp && Comp->IsA(UStaticMeshComponent::StaticClass()))
-        {
-            MeshComp = static_cast<UStaticMeshComponent *>(Comp);
-            break;
-        }
-    }
-
-    if (!MeshComp)
+    ULevel *Scene = World->GetScene();
+    if (!Scene)
     {
         return;
     }
 
-    if (ULevel *Scene = World->GetScene())
+    const bool bShowUUID = ShowFlags.HasFlag(EEngineShowFlags::SF_UUID);
+
+    for (UActorComponent *Comp : BoundsActor->GetComponents())
     {
-        Scene->VisitBVHNodesForPrimitive(MeshComp, [&OutPrimitives](const FAABB &Bounds, int32 Depth, bool bIsLeaf) {
+        UPrimitiveComponent *Primitive = dynamic_cast<UPrimitiveComponent *>(Comp);
+        if (!Primitive)
+        {
+            continue;
+        }
+
+        const bool bIsUUIDPrimitive = Primitive->IsA(UUUIDBillboardComponent::StaticClass());
+        if (bIsUUIDPrimitive && !bShowUUID)
+        {
+            continue;
+        }
+
+        Scene->VisitBVHNodesForPrimitive(Primitive, [&OutPrimitives](const FAABB &Bounds, int32 Depth, bool bIsLeaf) {
             (void)Depth;
 
             const FVector Center = (Bounds.PMin + Bounds.PMax) * 0.5f;
@@ -174,7 +181,7 @@ void BuildDebugLinePassInputs(const FDebugSceneBuildInputs &Inputs, FDebugLinePa
     {
         if (Inputs.ShowFlags.HasFlag(EEngineShowFlags::SF_SceneBVH))
         {
-            AppendActorSceneBVHDebug(Inputs.BoundsActor, Inputs.World, Primitives);
+            AppendActorSceneBVHDebug(Inputs.BoundsActor, Inputs.World, Inputs.ShowFlags, Primitives);
         }
 
         if (Inputs.ShowFlags.HasFlag(EEngineShowFlags::SF_MeshBVH))
