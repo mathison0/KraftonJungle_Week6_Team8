@@ -11,10 +11,12 @@ namespace
 	struct FOutlinePostConstantBuffer
 	{
 		FVector4 OutlineColor = FVector4(1.0f, 0.5f, 0.0f, 1.0f);
-		float OutlineThickness = 2.0f;
+		float OutlineThickness = 4.0f;
 		float OutlineThreshold = 0.1f;
 		float Padding[2] = {};
 	};
+
+	const FOutlinePostConstantBuffer GOutlinePostDefaults = {};
 }
 
 FOutlineRenderFeature::~FOutlineRenderFeature()
@@ -343,7 +345,11 @@ bool FOutlineRenderFeature::RenderCompositePass(
 	CompositePipelineState.BlendFactor = BlendFactor;
 	CompositePipelineState.DepthStencilState = StencilNotEqualState;
 	CompositePipelineState.StencilRef = 1;
-	UpdateOutlinePostConstantBuffer(Renderer, FVector4(1.0f, 0.5f, 0.0f, 1.0f), 2.0f, 0.1f);
+	UpdateOutlinePostConstantBuffer(
+		Renderer,
+		GOutlinePostDefaults.OutlineColor,
+		GOutlinePostDefaults.OutlineThickness,
+		GOutlinePostDefaults.OutlineThreshold);
 
 	const FFullscreenPassConstantBufferBinding ConstantBuffers[] =
 	{
