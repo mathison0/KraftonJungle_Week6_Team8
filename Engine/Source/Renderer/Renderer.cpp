@@ -91,7 +91,7 @@ void AppendActorSceneBVHDebug(AActor *BoundsActor, UWorld *World, const FShowFla
             continue;
         }
 
-        Scene->VisitBVHNodesForPrimitive(Primitive, [&OutPrimitives](const FAABB &Bounds, int32 Depth, bool bIsLeaf) {
+        Scene->VisitDebugBVHNodesForPrimitive(Primitive, [&OutPrimitives](const FAABB &Bounds, int32 Depth, bool bIsLeaf) {
             (void)Depth;
 
             const FVector Center = (Bounds.PMin + Bounds.PMax) * 0.5f;
