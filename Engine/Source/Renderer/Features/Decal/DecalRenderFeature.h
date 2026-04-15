@@ -35,6 +35,11 @@ public:
 		FRenderer& Renderer,
 		const FDecalRenderRequest& Request,
 		const FSceneRenderTargets& Targets);
+	bool RenderDebugOverlay(
+		FRenderer& Renderer,
+		const FDecalRenderRequest& Request,
+		const FSceneRenderTargets& Targets,
+		ID3D11RenderTargetView* RenderTargetView);
 
 	void Release();
 

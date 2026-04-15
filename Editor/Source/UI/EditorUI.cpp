@@ -482,9 +482,6 @@ void FEditorUI::LoadEditorSettings()
         GetPrivateProfileStringW(Sec, L"SF.FXAA", L"0", Buf, 64, Path.c_str());
         S.ShowFlags.SetFlag(EEngineShowFlags::SF_FXAA, _wtoi(Buf) != 0);
 
-        GetPrivateProfileStringW(Sec, L"SF.DepthView", L"0", Buf, 64, Path.c_str());
-        S.ShowFlags.SetFlag(EEngineShowFlags::SF_DepthView, _wtoi(Buf) != 0);
-
         GetPrivateProfileStringW(Sec, L"SF.DecalArrow", L"1", Buf, 64, Path.c_str());
         S.ShowFlags.SetFlag(EEngineShowFlags::SF_DecalArrow, _wtoi(Buf) != 0);
 
@@ -620,8 +617,6 @@ void FEditorUI::SaveEditorSettings()
                                    Path.c_str());
         WritePrivateProfileStringW(Sec, L"SF.FXAA", S.ShowFlags.HasFlag(EEngineShowFlags::SF_FXAA) ? L"1" : L"0",
                                    Path.c_str());
-        WritePrivateProfileStringW(Sec, L"SF.DepthView",
-                                   S.ShowFlags.HasFlag(EEngineShowFlags::SF_DepthView) ? L"1" : L"0", Path.c_str());
         WritePrivateProfileStringW(Sec, L"SF.DecalArrow",
                                    S.ShowFlags.HasFlag(EEngineShowFlags::SF_DecalArrow) ? L"1" : L"0", Path.c_str());
         WritePrivateProfileStringW(Sec, L"SF.ProjectileArrow",
@@ -909,6 +904,8 @@ void FEditorUI::Render()
                     ShowFlagCheckbox("Primitives", EEngineShowFlags::SF_Primitives);
                     ShowFlagCheckbox("UUID Text", EEngineShowFlags::SF_UUID);
 
+                    ShowFlagCheckbox("World Axis", EEngineShowFlags::SF_WorldAxis);
+
                     bool bShowGrid = TargetEntry->LocalState.bShowGrid;
                     if (ImGui::Checkbox("Grid", &bShowGrid))
                     {
@@ -916,7 +913,18 @@ void FEditorUI::Render()
                         SaveEditorSettings();
                     }
 
-                    ShowFlagCheckbox("World Axis", EEngineShowFlags::SF_WorldAxis);
+                    ImGui::BeginDisabled(!TargetEntry->LocalState.bShowGrid);
+                    if (ImGui::SliderFloat("Grid Size", &TargetEntry->LocalState.GridSize, 1.0f, 100.0f, "%.1f"))
+                    {
+                        SaveEditorSettings();
+                    }
+
+                    if (ImGui::SliderFloat("Line Thickness", &TargetEntry->LocalState.LineThickness, 0.1f, 5.0f,
+                                           "%.2f"))
+                    {
+                        SaveEditorSettings();
+                    }
+
 
                     ImGui::Dummy(ImVec2(0.0f, 5.0f));
                     ImGui::SeparatorText("Actor Helpers");
@@ -951,7 +959,7 @@ void FEditorUI::Render()
                         ImGui::BeginDisabled();
                     }
 
-                    ShowFlagCheckbox("Picking Bounds (Magenta)", EEngineShowFlags::SF_Collision);
+                    ShowFlagCheckbox("World Bounds (Magenta)", EEngineShowFlags::SF_Collision);
                     ShowFlagCheckbox("Scene BVH (Yellow)", EEngineShowFlags::SF_SceneBVH);
                     ShowFlagCheckbox("Mesh BVH (Cyan)", EEngineShowFlags::SF_MeshBVH);
                     ShowFlagCheckbox("Decal Volume (Orange)", EEngineShowFlags::SF_DecalDebug);
@@ -963,17 +971,6 @@ void FEditorUI::Render()
 
                     ImGui::Unindent();
 
-                    ImGui::BeginDisabled(!TargetEntry->LocalState.bShowGrid);
-                    if (ImGui::SliderFloat("Grid Size", &TargetEntry->LocalState.GridSize, 1.0f, 100.0f, "%.1f"))
-                    {
-                        SaveEditorSettings();
-                    }
-
-                    if (ImGui::SliderFloat("Line Thickness", &TargetEntry->LocalState.LineThickness, 0.1f, 5.0f,
-                                           "%.2f"))
-                    {
-                        SaveEditorSettings();
-                    }
                     ImGui::EndDisabled();
 
                     ImGui::Dummy(ImVec2(0.0f, 5.0f));
@@ -983,7 +980,6 @@ void FEditorUI::Render()
                     ShowFlagCheckbox("Anti-Aliasing (FXAA)", EEngineShowFlags::SF_FXAA);
                     ShowFlagCheckbox("Height Fog", EEngineShowFlags::SF_Fog);
                     ShowFlagCheckbox("Decal Projection", EEngineShowFlags::SF_Decal);
-                    ShowFlagCheckbox("Depth View", EEngineShowFlags::SF_DepthView);
                 }
             }
             ImGui::EndMenu();

@@ -149,7 +149,7 @@ void FDebugDrawManager::DrawAllCollisionBounds(const FShowFlags& ShowFlags, UWor
 			const FBoxSphereBounds Bounds = PrimitiveComponent->GetWorldBounds();
 			if (Bounds.BoxExtent.SizeSquared() > 0.0f)
 			{
-				const FVector4 Color = FVector4(1.0f, 0.2f, 1.0f, 1.0f); // Magenta: Picking Bounds / generic collision bounds
+				const FVector4 Color = FVector4(1.0f, 0.2f, 1.0f, 1.0f); // Magenta: World Bounds / generic collision bounds
 				OutPrimitives.Cubes.push_back({ Bounds.Center, Bounds.BoxExtent, Color });
 			}
 		}

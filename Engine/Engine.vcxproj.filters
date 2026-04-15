@@ -516,12 +516,9 @@
     <ClCompile Include="Source\Component\RotatingMovementComponent.cpp" />
     <ClCompile Include="Source\Renderer\Scene\Pipeline\ScenePipelineBuilder.cpp" />
     <ClCompile Include="Source\Renderer\Scene\Builders\SceneViewAssembler.cpp" />
-    <ClCompile Include="Source\Renderer\Scene\Passes\SceneBasePasses.cpp" />
-    <ClCompile Include="Source\Renderer\Scene\Passes\SceneEffectPasses.cpp" />
     <ClCompile Include="Source\Actor\SpotLightFakeActor.cpp" />
     <ClCompile Include="Source\Component\LocalHeightFogComponent.cpp" />
     <ClCompile Include="Source\Actor\LocalHeightFogActor.cpp" />
-    <ClCompile Include="Source\Renderer\Scene\Passes\SceneEditorPasses.cpp" />
     <ClCompile Include="Source\Renderer\Scene\Passes\EditorScreenOverlayPasses.cpp" />
     <ClCompile Include="Source\Renderer\Scene\Passes\EditorWorldOverlayPasses.cpp" />
     <ClCompile Include="Source\Renderer\Scene\Passes\FinalImagePostProcessPasses.cpp" />

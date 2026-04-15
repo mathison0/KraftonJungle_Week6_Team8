@@ -386,7 +386,6 @@
     <ClCompile Include="Source\Renderer\Scene\Passes\EditorScreenOverlayPasses.cpp" />
     <ClCompile Include="Source\Renderer\Scene\Passes\EditorWorldOverlayPasses.cpp" />
     <ClCompile Include="Source\Renderer\Scene\Passes\FinalImagePostProcessPasses.cpp" />
-    <ClCompile Include="Source\Renderer\Scene\Passes\SceneEditorPasses.cpp" />
     <ClCompile Include="Source\Renderer\Scene\Passes\SceneEffectsPasses.cpp" />
     <ClCompile Include="Source\Renderer\Scene\Passes\SceneGeometryPasses.cpp" />
     <ClCompile Include="Source\Renderer\Scene\Passes\SelectionHighlightPasses.cpp" />
@@ -411,8 +410,6 @@
     <ClCompile Include="Source\Renderer\Scene\Builders\SceneCommandSpriteBuilder.cpp" />
     <ClCompile Include="Source\Renderer\Scene\Builders\SceneCommandTextBuilder.cpp" />
     <ClCompile Include="Source\Renderer\Scene\Passes\ScenePasses.cpp" />
-    <ClCompile Include="Source\Renderer\Scene\Passes\SceneBasePasses.cpp" />
-    <ClCompile Include="Source\Renderer\Scene\Passes\SceneEffectPasses.cpp" />
     <ClCompile Include="Source\Renderer\Scene\SceneRenderer.cpp" />
     <ClCompile Include="Source\Renderer\UI\Screen\ScreenUIRenderer.cpp" />
     <ClCompile Include="Source\Renderer\Resources\Shader\Shader.cpp" />

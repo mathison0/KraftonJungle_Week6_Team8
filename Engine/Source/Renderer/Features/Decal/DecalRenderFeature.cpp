@@ -519,52 +519,90 @@ bool FDecalRenderFeature::Render(
   	    Context->PSSetShaderResources(0, 14, NullSRVs);
   	}
 	
-  	if (Request.bDebugDraw
-  	    && DebugBoxVS && DebugBoxPS
-  	    && DebugBoxVertexBuffer && DebugBoxIndexBuffer
-  	    && DebugBoxConstantBuffer && DebugBoxDepthState)
-  	{
-  	    Renderer.SetConstantBuffers();   // View / Projection CB 세팅
-	
-  	    Context->OMSetRenderTargets(1, &Targets.SceneColorRTV, Targets.SceneDepthDSV);
-  	    Context->OMSetDepthStencilState(DebugBoxDepthState, 0);
-  	    Context->OMSetBlendState(DebugBoxBlendState, nullptr, 0xFFFFFFFFu);
-  	    Context->RSSetState(DebugBoxRasterizerState);
-  	    DebugBoxVS->Bind(Context);
-  	    DebugBoxPS->Bind(Context);
-	
-  	    UINT Stride = sizeof(FVertex), Offset = 0;
-  	    Context->IASetVertexBuffers(0, 1, &DebugBoxVertexBuffer, &Stride, &Offset);
-  	    Context->IASetIndexBuffer(DebugBoxIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
-  	    Context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-	
-  	    for (const FDecalRenderItem& Item : Request.Items)
-  	    {
-  	        if (!Item.IsValid()) continue;
-	
-  	        Renderer.UpdateObjectConstantBuffer(Item.DecalWorld);
-
-  	        FDebugBoxMaterialCB MatCB;
-  	        MatCB.BaseColorTint = FLinearColor(1.0f, 0.6f, 0.1f, 1.0f);
-  	        MatCB.DecalExtents = Item.Extents;   
-  	                                                                                                    
-  	        D3D11_MAPPED_SUBRESOURCE Mapped = {};
-  	        if (SUCCEEDED(Context->Map(DebugBoxConstantBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &Mapped)))
-  	        {                                             
-  	            memcpy(Mapped.pData, &MatCB, sizeof(MatCB));
-  	            Context->Unmap(DebugBoxConstantBuffer, 0);
-  	        }                                                 
-  	                                                 
-  	        ID3D11Buffer* CBs[1] = { DebugBoxConstantBuffer };
-  	        Context->VSSetConstantBuffers(2, 1, CBs);      
-  	     
-  	        Context->DrawIndexed(DebugBoxIndexCount, 0, 0);
-  	    }                                                               
-  	 
-  	    Context->OMSetRenderTargets(1, &Targets.SceneColorRTV, nullptr);
-  	}                
-	
 	return bRendered;
+}
+
+bool FDecalRenderFeature::RenderDebugOverlay(
+	FRenderer& Renderer,
+	const FDecalRenderRequest& Request,
+	const FSceneRenderTargets& Targets,
+	ID3D11RenderTargetView* RenderTargetView)
+{
+	if (!Request.bDebugDraw || Request.Items.empty())
+	{
+		return true;
+	}
+
+	if (!RenderTargetView || !Targets.SceneDepthDSV)
+	{
+		return true;
+	}
+
+	if (!Initialize(Renderer)
+		|| !DebugBoxVS || !DebugBoxPS
+		|| !DebugBoxVertexBuffer || !DebugBoxIndexBuffer
+		|| !DebugBoxConstantBuffer || !DebugBoxDepthState)
+	{
+		return false;
+	}
+
+	ID3D11DeviceContext* Context = Renderer.GetDeviceContext();
+	if (!Context)
+	{
+		return false;
+	}
+
+	const D3D11_VIEWPORT Viewport =
+	{
+		0.0f,
+		0.0f,
+		static_cast<float>(Request.ViewportWidth),
+		static_cast<float>(Request.ViewportHeight),
+		0.0f,
+		1.0f
+	};
+
+	Renderer.SetConstantBuffers();
+	Context->RSSetViewports(1, &Viewport);
+	Context->OMSetRenderTargets(1, &RenderTargetView, Targets.SceneDepthDSV);
+	Context->OMSetDepthStencilState(DebugBoxDepthState, 0);
+	Context->OMSetBlendState(DebugBoxBlendState, nullptr, 0xFFFFFFFFu);
+	Context->RSSetState(DebugBoxRasterizerState);
+	DebugBoxVS->Bind(Context);
+	DebugBoxPS->Bind(Context);
+
+	UINT Stride = sizeof(FVertex);
+	UINT Offset = 0;
+	Context->IASetVertexBuffers(0, 1, &DebugBoxVertexBuffer, &Stride, &Offset);
+	Context->IASetIndexBuffer(DebugBoxIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
+	Context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+	for (const FDecalRenderItem& Item : Request.Items)
+	{
+		if (!Item.IsValid())
+		{
+			continue;
+		}
+
+		Renderer.UpdateObjectConstantBuffer(Item.DecalWorld);
+
+		FDebugBoxMaterialCB MatCB;
+		MatCB.BaseColorTint = FLinearColor(1.0f, 0.6f, 0.1f, 1.0f);
+		MatCB.DecalExtents = Item.Extents;
+
+		D3D11_MAPPED_SUBRESOURCE Mapped = {};
+		if (SUCCEEDED(Context->Map(DebugBoxConstantBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &Mapped)))
+		{
+			memcpy(Mapped.pData, &MatCB, sizeof(MatCB));
+			Context->Unmap(DebugBoxConstantBuffer, 0);
+		}
+
+		ID3D11Buffer* ConstantBuffers[1] = { DebugBoxConstantBuffer };
+		Context->VSSetConstantBuffers(2, 1, ConstantBuffers);
+		Context->DrawIndexed(DebugBoxIndexCount, 0, 0);
+	}
+
+	return true;
 }
 
 FClusteredLookupDecalStats FDecalRenderFeature::GetClusteredStats() const
