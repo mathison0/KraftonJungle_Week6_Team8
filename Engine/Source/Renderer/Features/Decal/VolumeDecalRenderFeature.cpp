@@ -415,9 +415,9 @@ bool FVolumeDecalRenderFeature::CreateShaders(FRenderer& Renderer)
     }
 
     const std::wstring ShaderDir = FPaths::ShaderDir();
-    const std::wstring VSPath = ShaderDir + L"VolumeDecalVertexShader.hlsl";
-    const std::wstring PSPath = ShaderDir + L"VolumeDecalPixelShader.hlsl";
-	const std::wstring DebugPSPath = ShaderDir + L"DecalDebugPixelShader.hlsl";
+    const std::wstring VSPath = ShaderDir + L"SceneEffects/VolumeDecalVertexShader.hlsl";
+    const std::wstring PSPath = ShaderDir + L"SceneEffects/VolumeDecalPixelShader.hlsl";
+	const std::wstring DebugPSPath = ShaderDir + L"SceneEffects/DecalDebugPixelShader.hlsl";
 
     VolumeVS = FShaderMap::Get().GetOrCreateVertexShader(Device, VSPath.c_str());
     VolumePS = FShaderMap::Get().GetOrCreatePixelShader(Device, PSPath.c_str());

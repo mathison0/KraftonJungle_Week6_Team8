@@ -312,7 +312,7 @@ bool FFogRenderFeature::Initialize(FRenderer& Renderer)
     const std::wstring ShaderDir = FPaths::ShaderDir().wstring();
     if (!FogPostVS)
     {
-        auto Resource = FShaderResource::GetOrCompile((ShaderDir + L"BlitVertexShader.hlsl").c_str(), "main", "vs_5_0");
+        auto Resource = FShaderResource::GetOrCompile((ShaderDir + L"FinalImagePostProcess/BlitVertexShader.hlsl").c_str(), "main", "vs_5_0");
         if (!Resource || FAILED(Device->CreateVertexShader(Resource->GetBufferPointer(), Resource->GetBufferSize(), nullptr, &FogPostVS)))
         {
             return false;
@@ -321,7 +321,7 @@ bool FFogRenderFeature::Initialize(FRenderer& Renderer)
 
     if (!FogPostPS)
     {
-        auto Resource = FShaderResource::GetOrCompile((ShaderDir + L"FogCompositeClusteredPixelShader.hlsl").c_str(), "main", "ps_5_0");
+        auto Resource = FShaderResource::GetOrCompile((ShaderDir + L"SceneEffects/FogCompositeClusteredPixelShader.hlsl").c_str(), "main", "ps_5_0");
         if (!Resource || FAILED(Device->CreatePixelShader(Resource->GetBufferPointer(), Resource->GetBufferSize(), nullptr, &FogPostPS)))
         {
             return false;

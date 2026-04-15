@@ -685,7 +685,7 @@ bool FDecalRenderFeature::Initialize(FRenderer& Renderer)
 	const std::wstring ShaderDir = FPaths::ShaderDir();
 	if (!CompositeVS)
 	{
-		auto Resource = FShaderResource::GetOrCompile((ShaderDir + L"BlitVertexShader.hlsl").c_str(), "main", "vs_5_0");
+		auto Resource = FShaderResource::GetOrCompile((ShaderDir + L"FinalImagePostProcess/BlitVertexShader.hlsl").c_str(), "main", "vs_5_0");
 		if (!Resource || FAILED(Device->CreateVertexShader(Resource->GetBufferPointer(), Resource->GetBufferSize(), nullptr, &CompositeVS)))
 		{
 			return false;
@@ -694,7 +694,7 @@ bool FDecalRenderFeature::Initialize(FRenderer& Renderer)
 
 	if (!CompositePS)
 	{
-		auto Resource = FShaderResource::GetOrCompile((ShaderDir + L"DecalCompositePixelShader.hlsl").c_str(), "main", "ps_5_0");
+		auto Resource = FShaderResource::GetOrCompile((ShaderDir + L"SceneEffects/DecalCompositePixelShader.hlsl").c_str(), "main", "ps_5_0");
 		if (!Resource || FAILED(Device->CreatePixelShader(Resource->GetBufferPointer(), Resource->GetBufferSize(), nullptr, &CompositePS)))
 		{
 			return false;
@@ -704,8 +704,8 @@ bool FDecalRenderFeature::Initialize(FRenderer& Renderer)
 	if (!DebugBoxPS || !DebugBoxVS)
 	{
 		const std::wstring ShaderDir = FPaths::ShaderDir();
-		DebugBoxVS = FShaderMap::Get().GetOrCreateVertexShader(Device, (ShaderDir + L"DecalVertexShader.hlsl").c_str());
-		DebugBoxPS = FShaderMap::Get().GetOrCreatePixelShader(Device, (ShaderDir + L"DecalDebugPixelShader.hlsl").c_str());
+		DebugBoxVS = FShaderMap::Get().GetOrCreateVertexShader(Device, (ShaderDir + L"SceneEffects/DecalVertexShader.hlsl").c_str());
+		DebugBoxPS = FShaderMap::Get().GetOrCreatePixelShader(Device, (ShaderDir + L"SceneEffects/DecalDebugPixelShader.hlsl").c_str());
 		if (!DebugBoxPS || !DebugBoxVS) return false;
 	}
 	

@@ -1,6 +1,7 @@
 ﻿#pragma once
 
 #include "Renderer/Scene/Passes/PassContext.h"
+#include "Renderer/GraphicsCore/FullscreenPass.h"
 #include "Renderer/Scene/MeshPassProcessor.h"
 #include "Renderer/Features/Decal/DecalRenderFeature.h"
 #include "Renderer/Features/Outline/OutlineRenderFeature.h"
