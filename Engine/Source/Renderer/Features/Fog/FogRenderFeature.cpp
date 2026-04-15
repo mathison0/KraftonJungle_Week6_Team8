@@ -1,4 +1,4 @@
-﻿#include "Renderer/Features/Fog/FogRenderFeature.h"
+#include "Renderer/Features/Fog/FogRenderFeature.h"
 
 #include "Core/Paths.h"
 #include "Debug/EngineLog.h"
@@ -39,6 +39,7 @@ namespace
         FVector4 ScreenSize = FVector4(0.0f, 0.0f, 0.0f, 0.0f);     // width, height, 1/width, 1/height
         FVector4 ClusterParams = FVector4(0.0f, 0.0f, 0.0f, 0.0f);  // tileCountX, tileCountY, sliceCountZ, nearZ
         FVector4 ClusterParams2 = FVector4(0.0f, 0.0f, 0.0f, 0.0f); // farZ, logZScale, logZBias, globalFogCount
+        FVector4 ViewParams = FVector4(0.0f, 0.0f, 0.0f, 0.0f);     // x: orthographic flag
     };
 
     struct FFogClusterConstantBuffer
@@ -350,6 +351,7 @@ bool FFogRenderFeature::UpdateFogCompositeConstantBuffer(FRenderer& Renderer, co
     const float LogZScale = static_cast<float>(FOG_CLUSTER_COUNT_Z) / std::log(View.FarZ / View.NearZ);
     const float LogZBias = -std::log(View.NearZ) * LogZScale;
     CBData.ClusterParams2 = FVector4(View.FarZ, LogZScale, LogZBias, static_cast<float>(GlobalFogCount));
+    CBData.ViewParams = FVector4(View.bOrthographic ? 1.0f : 0.0f, 0.0f, 0.0f, 0.0f);
 
     D3D11_MAPPED_SUBRESOURCE Mapped = {};
     if (FAILED(DeviceContext->Map(FogCompositeConstantBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &Mapped)))

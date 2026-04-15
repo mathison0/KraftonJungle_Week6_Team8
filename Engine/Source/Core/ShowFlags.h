@@ -19,6 +19,7 @@ enum class EEngineShowFlags : uint64
 	SF_DecalDebug      = 1ull << 13,
 	SF_DecalArrow      = 1ull << 14,
 	SF_ProjectileArrow = 1ull << 15,
+	SF_LocalFogDebug   = 1ull << 16,
 };
 
 class ENGINE_API FShowFlags

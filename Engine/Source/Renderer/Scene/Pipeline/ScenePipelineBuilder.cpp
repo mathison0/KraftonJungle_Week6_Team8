@@ -36,6 +36,6 @@ void BuildDefaultSceneRenderPipeline(FRenderPipeline& OutPipeline, const FMeshPa
     OutPipeline.AddPass(std::make_unique<FFXAAPass>());
 
     // Editor Screen Overlay
-    OutPipeline.AddPass(std::make_unique<FEditorPrimitivePass>(MeshPassProcessor));
     OutPipeline.AddPass(std::make_unique<FEditorLinePass>());
+    OutPipeline.AddPass(std::make_unique<FEditorPrimitivePass>(MeshPassProcessor));
 }

@@ -493,6 +493,9 @@ void FEditorUI::LoadEditorSettings()
 
         GetPrivateProfileStringW(Sec, L"SF.Fog", L"1", Buf, 64, Path.c_str());
         S.ShowFlags.SetFlag(EEngineShowFlags::SF_Fog, _wtoi(Buf) != 0);
+
+        GetPrivateProfileStringW(Sec, L"SF.LocalFogDebug", L"0", Buf, 64, Path.c_str());
+        S.ShowFlags.SetFlag(EEngineShowFlags::SF_LocalFogDebug, _wtoi(Buf) != 0);
     }
 
     bool bAnyDebugDrawEnabled = false;
@@ -501,6 +504,7 @@ void FEditorUI::LoadEditorSettings()
     bool bAnySceneBVHEnabled = false;
     bool bAnyMeshBVHEnabled = false;
     bool bAnyDecalDebugEnabled = false;
+    bool bAnyLocalFogDebugEnabled = false;
 
     for (const FViewportEntry &Entry : ViewportRegistry.GetEntries())
     {
@@ -514,6 +518,8 @@ void FEditorUI::LoadEditorSettings()
         bAnyMeshBVHEnabled = bAnyMeshBVHEnabled || Entry.LocalState.ShowFlags.HasFlag(EEngineShowFlags::SF_MeshBVH);
         bAnyDecalDebugEnabled =
             bAnyDecalDebugEnabled || Entry.LocalState.ShowFlags.HasFlag(EEngineShowFlags::SF_DecalDebug);
+        bAnyLocalFogDebugEnabled =
+            bAnyLocalFogDebugEnabled || Entry.LocalState.ShowFlags.HasFlag(EEngineShowFlags::SF_LocalFogDebug);
     }
 
     for (FViewportEntry &Entry : ViewportRegistry.GetEntries())
@@ -524,6 +530,7 @@ void FEditorUI::LoadEditorSettings()
         Entry.LocalState.ShowFlags.SetFlag(EEngineShowFlags::SF_SceneBVH, bAnySceneBVHEnabled);
         Entry.LocalState.ShowFlags.SetFlag(EEngineShowFlags::SF_MeshBVH, bAnyMeshBVHEnabled);
         Entry.LocalState.ShowFlags.SetFlag(EEngineShowFlags::SF_DecalDebug, bAnyDecalDebugEnabled);
+        Entry.LocalState.ShowFlags.SetFlag(EEngineShowFlags::SF_LocalFogDebug, bAnyLocalFogDebugEnabled);
     }
 
     FSlateApplication *Slate = Engine->GetSlateApplication();
@@ -614,6 +621,9 @@ void FEditorUI::SaveEditorSettings()
         WritePrivateProfileStringW(Sec, L"SF.Decal", S.ShowFlags.HasFlag(EEngineShowFlags::SF_Decal) ? L"1" : L"0",
                                    Path.c_str());
         WritePrivateProfileStringW(Sec, L"SF.Fog", S.ShowFlags.HasFlag(EEngineShowFlags::SF_Fog) ? L"1" : L"0",
+                                   Path.c_str());
+        WritePrivateProfileStringW(Sec, L"SF.LocalFogDebug",
+                                   S.ShowFlags.HasFlag(EEngineShowFlags::SF_LocalFogDebug) ? L"1" : L"0",
                                    Path.c_str());
         WritePrivateProfileStringW(Sec, L"SF.FXAA", S.ShowFlags.HasFlag(EEngineShowFlags::SF_FXAA) ? L"1" : L"0",
                                    Path.c_str());
@@ -948,6 +958,7 @@ void FEditorUI::Render()
                             ShowFlags.SetFlag(EEngineShowFlags::SF_SceneBVH, false);
                             ShowFlags.SetFlag(EEngineShowFlags::SF_MeshBVH, false);
                             ShowFlags.SetFlag(EEngineShowFlags::SF_DecalDebug, false);
+                            ShowFlags.SetFlag(EEngineShowFlags::SF_LocalFogDebug, false);
                         }
                         SaveEditorSettings();
                     }
@@ -963,6 +974,7 @@ void FEditorUI::Render()
                     ShowFlagCheckbox("Scene BVH (Yellow)", EEngineShowFlags::SF_SceneBVH);
                     ShowFlagCheckbox("Mesh BVH (Cyan)", EEngineShowFlags::SF_MeshBVH);
                     ShowFlagCheckbox("Decal Volume (Orange)", EEngineShowFlags::SF_DecalDebug);
+                    ShowFlagCheckbox("Local Fog Volume (Purple)", EEngineShowFlags::SF_LocalFogDebug);
 
                     if (!bDebugDraw)
                     {

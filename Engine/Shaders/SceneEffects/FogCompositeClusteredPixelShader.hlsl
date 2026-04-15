@@ -6,6 +6,7 @@ cbuffer FogGlobals : register(b0)
     float4 ScreenSize;
     float4 ClusterParams;
     float4 ClusterParams2;
+    float4 ViewParams;
 };
 
 struct FFogClusterHeader
@@ -57,10 +58,33 @@ float3 ReconstructWorldPositionAtFarPlane(float2 UV)
     return ReconstructWorldPosition(UV, 1.0f);
 }
 
-float3 ComputeViewRayDirectionWS(float2 UV)
+float3 ReconstructWorldPositionAtNearPlane(float2 UV)
+{
+    return ReconstructWorldPosition(UV, 0.0f);
+}
+
+bool IsOrthographicView()
+{
+    return ViewParams.x > 0.5f;
+}
+
+void BuildViewRay(float2 UV, out float3 OutRayOriginWS, out float3 OutRayDirWS)
 {
     float3 FarWorldPosition = ReconstructWorldPositionAtFarPlane(UV);
-    return normalize(FarWorldPosition - CameraPosition.xyz);
+
+    if (IsOrthographicView())
+    {
+        float3 NearWorldPosition = ReconstructWorldPositionAtNearPlane(UV);
+        float3 RayVectorWS = FarWorldPosition - NearWorldPosition;
+        float RayLength = length(RayVectorWS);
+
+        OutRayOriginWS = NearWorldPosition;
+        OutRayDirWS = (RayLength > 1.0e-6f) ? (RayVectorWS / RayLength) : float3(1.0f, 0.0f, 0.0f);
+        return;
+    }
+
+    OutRayOriginWS = CameraPosition.xyz;
+    OutRayDirWS = normalize(FarWorldPosition - CameraPosition.xyz);
 }
 
 float ComputeHeightFogOpticalDepthUEApprox(
@@ -161,6 +185,7 @@ float ComputeLocalFogAmount(
     FFogGPUData Fog,
     bool bHasSurfaceDepth,
     float SurfaceDistance,
+    float3 RayOriginWS,
     float3 RayDirWS)
 {
     float MaxOpacity = saturate(Fog.FogParams2.x);
@@ -175,8 +200,6 @@ float ComputeLocalFogAmount(
     {
         return 0.0f;
     }
-
-    float3 RayOriginWS = CameraPosition.xyz;
 
     float TEnter = 0.0f;
     float TExit = 0.0f;
@@ -237,6 +260,7 @@ float ComputeLocalFogAmount(
 float ComputeGlobalFogAmount(
     FFogGPUData Fog,
     float Depth,
+    float3 RayOriginWS,
     float3 ViewRay,
     float ViewDistance)
 {
@@ -267,7 +291,7 @@ float ComputeGlobalFogAmount(
         return 0.0f;
     }
 
-    float CameraHeightRelative = CameraPosition.z - Fog.FogOrigin.z;
+    float CameraHeightRelative = RayOriginWS.z - Fog.FogOrigin.z;
     float OpticalDepth = ComputeHeightFogOpticalDepthUEApprox(
         CameraHeightRelative,
         ViewRay.z,
@@ -302,6 +326,18 @@ uint ComputeFogClusterIndex(float2 UV, float3 WorldPosition)
     return TileX + TileY * ClusterCountX + TileZ * ClusterCountX * ClusterCountY;
 }
 
+uint ComputeFogSliceIndex(float3 WorldPosition)
+{
+    uint ClusterCountZ = (uint)ClusterParams.z;
+
+    float3 ViewPosition = mul(float4(WorldPosition, 1.0f), ViewMatrix).xyz;
+    float ViewDepth = max(ViewPosition.x, 1.0e-4f);
+
+    float LogZScale = ClusterParams2.y;
+    float LogZBias  = ClusterParams2.z;
+    return (uint)clamp(log(ViewDepth) * LogZScale + LogZBias, 0.0f, (float)(ClusterCountZ - 1u));
+}
+
 uint ComputeFogClusterIndexFromTile(uint TileX, uint TileY, uint TileZ, uint ClusterCountX, uint ClusterCountY)
 {
     return TileX + TileY * ClusterCountX + TileZ * ClusterCountX * ClusterCountY;
@@ -309,10 +345,9 @@ uint ComputeFogClusterIndexFromTile(uint TileX, uint TileY, uint TileZ, uint Clu
 
 bool ContainsFogIndex(uint FogIndices[MAX_BACKGROUND_LOCAL_FOG_CANDIDATES], uint Count, uint FogIndex)
 {
-    [loop]
-    for (uint i = 0u; i < Count; ++i)
+    for (uint FogArrayIndex = 0u; FogArrayIndex < Count; ++FogArrayIndex)
     {
-        if (FogIndices[i] == FogIndex)
+        if (FogIndices[FogArrayIndex] == FogIndex)
         {
             return true;
         }
@@ -328,8 +363,9 @@ float4 main(VSOutput Input) : SV_TARGET
 
     bool bHasSurfaceDepth = (Depth < 0.999999f);
 
-    float3 RayOriginWS = CameraPosition.xyz;
-    float3 RayDirWS = ComputeViewRayDirectionWS(Input.UV);
+    float3 RayOriginWS = float3(0.0f, 0.0f, 0.0f);
+    float3 RayDirWS = float3(1.0f, 0.0f, 0.0f);
+    BuildViewRay(Input.UV, RayOriginWS, RayDirWS);
 
     float SurfaceDistance = 0.0f;
     float3 WorldPosition = ReconstructWorldPositionAtFarPlane(Input.UV);
@@ -340,7 +376,7 @@ float4 main(VSOutput Input) : SV_TARGET
         SurfaceDistance = length(WorldPosition - RayOriginWS);
     }
 
-    float RayDistanceForGlobal = bHasSurfaceDepth ? SurfaceDistance : ClusterParams2.x;
+    float RayDistanceForGlobal = length(WorldPosition - RayOriginWS);
     float3 ViewRay = RayDirWS * RayDistanceForGlobal;
 
     float3 AccumulatedFogColor = float3(0.0f, 0.0f, 0.0f);
@@ -353,104 +389,74 @@ float4 main(VSOutput Input) : SV_TARGET
     uint TileX = min((uint)(Input.UV.x * ClusterCountX), ClusterCountX - 1u);
     uint TileY = min((uint)(Input.UV.y * ClusterCountY), ClusterCountY - 1u);
 
-    if (bHasSurfaceDepth)
+    uint UniqueFogIndices[MAX_BACKGROUND_LOCAL_FOG_CANDIDATES];
+    uint UniqueFogCount = 0u;
+    uint MaxTileZ = bHasSurfaceDepth
+        ? ComputeFogSliceIndex(WorldPosition)
+        : (ClusterCountZ - 1u);
+
+    // Local fog can live anywhere between camera and surface, so gathering only the
+    // surface slice causes per-view popping when the surface depth crosses slice boundaries.
+    [loop]
+    for (uint TileZ = 0u; TileZ <= MaxTileZ; ++TileZ)
     {
-        uint ClusterIndex = ComputeFogClusterIndex(Input.UV, WorldPosition);
+        uint ClusterIndex = ComputeFogClusterIndexFromTile(TileX, TileY, TileZ, ClusterCountX, ClusterCountY);
         FFogClusterHeader Header = FogClusterHeaders[ClusterIndex];
 
         [loop]
         for (uint i = 0u; i < Header.Count; ++i)
         {
             uint FogIndex = FogClusterIndices[Header.Offset + i];
-            FFogGPUData Fog = FogDataBuffer[FogIndex];
 
-            float FogAmount = ComputeLocalFogAmount(
-                Fog,
-                true,
-                SurfaceDistance,
-                RayDirWS);
-
-            if (FogAmount <= 0.0f)
+            if (ContainsFogIndex(UniqueFogIndices, UniqueFogCount, FogIndex))
             {
                 continue;
             }
 
-            float3 FogColor = Fog.FogColor.rgb;
-            AccumulatedFogColor += FogColor * FogAmount * RemainingTransmittance;
-            RemainingTransmittance *= (1.0f - FogAmount);
-
-            if (RemainingTransmittance <= 0.01f)
+            if (UniqueFogCount >= MAX_BACKGROUND_LOCAL_FOG_CANDIDATES)
             {
-                RemainingTransmittance = 0.0f;
                 break;
             }
+
+            UniqueFogIndices[UniqueFogCount++] = FogIndex;
         }
     }
-    else
+
+    [loop]
+    for (uint i = 0u; i < UniqueFogCount; ++i)
     {
-        uint UniqueFogIndices[MAX_BACKGROUND_LOCAL_FOG_CANDIDATES];
-        uint UniqueFogCount = 0u;
+        uint FogIndex = UniqueFogIndices[i];
+        FFogGPUData Fog = FogDataBuffer[FogIndex];
 
-        [loop]
-        for (uint TileZ = 0u; TileZ < ClusterCountZ; ++TileZ)
+        float FogAmount = ComputeLocalFogAmount(
+            Fog,
+            bHasSurfaceDepth,
+            SurfaceDistance,
+            RayOriginWS,
+            RayDirWS);
+
+        if (FogAmount <= 0.0f)
         {
-            uint ClusterIndex = ComputeFogClusterIndexFromTile(TileX, TileY, TileZ, ClusterCountX, ClusterCountY);
-            FFogClusterHeader Header = FogClusterHeaders[ClusterIndex];
-
-            [loop]
-            for (uint i = 0u; i < Header.Count; ++i)
-            {
-                uint FogIndex = FogClusterIndices[Header.Offset + i];
-
-                if (ContainsFogIndex(UniqueFogIndices, UniqueFogCount, FogIndex))
-                {
-                    continue;
-                }
-
-                if (UniqueFogCount >= MAX_BACKGROUND_LOCAL_FOG_CANDIDATES)
-                {
-                    break;
-                }
-
-                UniqueFogIndices[UniqueFogCount++] = FogIndex;
-            }
+            continue;
         }
 
-        [loop]
-        for (uint i = 0u; i < UniqueFogCount; ++i)
+        float3 FogColor = Fog.FogColor.rgb;
+        AccumulatedFogColor += FogColor * FogAmount * RemainingTransmittance;
+        RemainingTransmittance *= (1.0f - FogAmount);
+
+        if (RemainingTransmittance <= 0.01f)
         {
-            uint FogIndex = UniqueFogIndices[i];
-            FFogGPUData Fog = FogDataBuffer[FogIndex];
-
-            float FogAmount = ComputeLocalFogAmount(
-                Fog,
-                false,
-                0.0f,
-                RayDirWS);
-
-            if (FogAmount <= 0.0f)
-            {
-                continue;
-            }
-
-            float3 FogColor = Fog.FogColor.rgb;
-            AccumulatedFogColor += FogColor * FogAmount * RemainingTransmittance;
-            RemainingTransmittance *= (1.0f - FogAmount);
-
-            if (RemainingTransmittance <= 0.01f)
-            {
-                RemainingTransmittance = 0.0f;
-                break;
-            }
+            RemainingTransmittance = 0.0f;
+            break;
         }
     }
 
     uint GlobalFogCount = (uint)ClusterParams2.w;
     [loop]
-    for (uint i = 0u; i < GlobalFogCount; ++i)
+    for (uint GlobalFogIndex = 0u; GlobalFogIndex < GlobalFogCount; ++GlobalFogIndex)
     {
-        FFogGPUData Fog = GlobalFogBuffer[i];
-        float FogAmount = ComputeGlobalFogAmount(Fog, Depth, ViewRay, RayDistanceForGlobal);
+        FFogGPUData Fog = GlobalFogBuffer[GlobalFogIndex];
+        float FogAmount = ComputeGlobalFogAmount(Fog, Depth, RayOriginWS, ViewRay, RayDistanceForGlobal);
         if (FogAmount <= 0.0f)
         {
             continue;

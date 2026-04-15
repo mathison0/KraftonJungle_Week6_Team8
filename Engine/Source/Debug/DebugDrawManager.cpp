@@ -9,6 +9,46 @@
 #include "Object/Class.h"
 #include "World/World.h"
 
+namespace
+{
+	void AppendOrientedBoxLines(
+		FDebugPrimitiveList& OutPrimitives,
+		const FTransform& BoxTransform,
+		const FVector& Extent,
+		const FVector4& Color)
+	{
+		const FVector Corners[8] =
+		{
+			FVector(-Extent.X, -Extent.Y, -Extent.Z),
+			FVector(Extent.X, -Extent.Y, -Extent.Z),
+			FVector(-Extent.X, Extent.Y, -Extent.Z),
+			FVector(Extent.X, Extent.Y, -Extent.Z),
+			FVector(-Extent.X, -Extent.Y, Extent.Z),
+			FVector(Extent.X, -Extent.Y, Extent.Z),
+			FVector(-Extent.X, Extent.Y, Extent.Z),
+			FVector(Extent.X, Extent.Y, Extent.Z)
+		};
+
+		static constexpr int32 Edges[12][2] =
+		{
+			{ 0, 1 }, { 1, 3 }, { 3, 2 }, { 2, 0 },
+			{ 4, 5 }, { 5, 7 }, { 7, 6 }, { 6, 4 },
+			{ 0, 4 }, { 1, 5 }, { 2, 6 }, { 3, 7 }
+		};
+
+		FVector WorldCorners[8];
+		for (int32 CornerIndex = 0; CornerIndex < 8; ++CornerIndex)
+		{
+			WorldCorners[CornerIndex] = BoxTransform.TransformPosition(Corners[CornerIndex]);
+		}
+
+		for (const auto& Edge : Edges)
+		{
+			OutPrimitives.Lines.push_back({ WorldCorners[Edge[0]], WorldCorners[Edge[1]], Color });
+		}
+	}
+}
+
 FWorldDebugDrawBucket* FDebugDrawManager::FindOrAddBucket(UWorld* World)
 {
 	if (!World)
@@ -63,6 +103,11 @@ void FDebugDrawManager::BuildPrimitiveList(
 		DrawAllCollisionBounds(ShowFlags, World, OutPrimitives);
 	}
 
+	if (ShowFlags.HasFlag(EEngineShowFlags::SF_LocalFogDebug) && World)
+	{
+		DrawAllLocalFogVolumes(ShowFlags, World, OutPrimitives);
+	}
+
 	if (const FWorldDebugDrawBucket* Bucket = FindBucket(World))
 	{
 		OutPrimitives.Cubes.insert(OutPrimitives.Cubes.end(), Bucket->Cubes.begin(), Bucket->Cubes.end());
@@ -105,8 +150,7 @@ void FDebugDrawManager::DrawAllCollisionBounds(const FShowFlags& ShowFlags, UWor
 			}
 
 			UPrimitiveComponent* PrimitiveComponent = static_cast<UPrimitiveComponent*>(Component);
-			const bool bIsLocalFogComponent = PrimitiveComponent->IsA(ULocalHeightFogComponent::StaticClass());
-			if (!bIsLocalFogComponent && !PrimitiveComponent->ShouldDrawDebugBounds())
+			if (!PrimitiveComponent->ShouldDrawDebugBounds())
 			{
 				continue;
 			}
@@ -116,42 +160,49 @@ void FDebugDrawManager::DrawAllCollisionBounds(const FShowFlags& ShowFlags, UWor
 				continue;
 			}
 
-			if (PrimitiveComponent->IsA(ULocalHeightFogComponent::StaticClass()))
-			{
-				const ULocalHeightFogComponent* LocalFogComponent = static_cast<const ULocalHeightFogComponent*>(PrimitiveComponent);
-				const FTransform FogTransform = FTransform(LocalFogComponent->GetWorldTransform());
-				const FVector Extent = LocalFogComponent->FogExtents;
-				const FVector Signs[8] =
-				{
-					FVector(-Extent.X, -Extent.Y, -Extent.Z), FVector(Extent.X, -Extent.Y, -Extent.Z),
-					FVector(-Extent.X, Extent.Y, -Extent.Z),  FVector(Extent.X, Extent.Y, -Extent.Z),
-					FVector(-Extent.X, -Extent.Y, Extent.Z),  FVector(Extent.X, -Extent.Y, Extent.Z),
-					FVector(-Extent.X, Extent.Y, Extent.Z),   FVector(Extent.X, Extent.Y, Extent.Z)
-				};
-				const int Edges[12][2] =
-				{
-					{0,1},{1,3},{3,2},{2,0},
-					{4,5},{5,7},{7,6},{6,4},
-					{0,4},{1,5},{2,6},{3,7}
-				};
-				FVector WorldCorners[8];
-				for (int i = 0; i < 8; ++i)
-				{
-					WorldCorners[i] = FogTransform.TransformPosition(Signs[i]);
-				}
-				for (const auto& Edge : Edges)
-				{
-					OutPrimitives.Lines.push_back({ WorldCorners[Edge[0]], WorldCorners[Edge[1]], FVector4(1.0f, 0.2f, 1.0f, 1.0f) });
-				}
-				continue;
-			}
-
 			const FBoxSphereBounds Bounds = PrimitiveComponent->GetWorldBounds();
 			if (Bounds.BoxExtent.SizeSquared() > 0.0f)
 			{
 				const FVector4 Color = FVector4(1.0f, 0.2f, 1.0f, 1.0f); // Magenta: World Bounds / generic collision bounds
 				OutPrimitives.Cubes.push_back({ Bounds.Center, Bounds.BoxExtent, Color });
 			}
+		}
+	}
+}
+
+void FDebugDrawManager::DrawAllLocalFogVolumes(const FShowFlags& ShowFlags, UWorld* World, FDebugPrimitiveList& OutPrimitives) const
+{
+	TArray<AActor*> AllActors = World->GetAllActors();
+	for (AActor* Actor : AllActors)
+	{
+		if (!Actor || Actor->IsPendingDestroy() || !Actor->IsVisible())
+		{
+			continue;
+		}
+
+		for (UActorComponent* Component : Actor->GetComponents())
+		{
+			if (!Component || !Component->IsA(ULocalHeightFogComponent::StaticClass()))
+			{
+				continue;
+			}
+
+			ULocalHeightFogComponent* LocalFogComponent = static_cast<ULocalHeightFogComponent*>(Component);
+			if (!LocalFogComponent->ShouldDrawDebugBounds())
+			{
+				continue;
+			}
+
+			if (IsArrowVisualizationPrimitive(LocalFogComponent) || IsHiddenByArrowVisualizationShowFlags(LocalFogComponent, ShowFlags))
+			{
+				continue;
+			}
+
+			AppendOrientedBoxLines(
+				OutPrimitives,
+				FTransform(LocalFogComponent->GetWorldTransform()),
+				LocalFogComponent->FogExtents,
+				FVector4(0.65f, 0.25f, 1.0f, 1.0f));
 		}
 	}
 }
