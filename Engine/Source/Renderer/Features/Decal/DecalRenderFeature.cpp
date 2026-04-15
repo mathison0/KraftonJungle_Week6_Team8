@@ -1,4 +1,4 @@
-﻿#include "Renderer/Features/Decal/DecalRenderFeature.h"
+#include "Renderer/Features/Decal/DecalRenderFeature.h"
 
 #include "Core/Paths.h"
 #include "Renderer/GraphicsCore/FullscreenPass.h"
@@ -526,7 +526,8 @@ bool FDecalRenderFeature::RenderDebugOverlay(
 	FRenderer& Renderer,
 	const FDecalRenderRequest& Request,
 	const FSceneRenderTargets& Targets,
-	ID3D11RenderTargetView* RenderTargetView)
+	ID3D11RenderTargetView* RenderTargetView,
+	const FLinearColor& DebugColor)
 {
 	if (!Request.bDebugDraw || Request.Items.empty())
 	{
@@ -587,7 +588,7 @@ bool FDecalRenderFeature::RenderDebugOverlay(
 		Renderer.UpdateObjectConstantBuffer(Item.DecalWorld);
 
 		FDebugBoxMaterialCB MatCB;
-		MatCB.BaseColorTint = FLinearColor(1.0f, 0.6f, 0.1f, 1.0f);
+		MatCB.BaseColorTint = DebugColor;
 		MatCB.DecalExtents = Item.Extents;
 
 		D3D11_MAPPED_SUBRESOURCE Mapped = {};
@@ -742,8 +743,8 @@ bool FDecalRenderFeature::Initialize(FRenderer& Renderer)
 	if (!DebugBoxPS || !DebugBoxVS)
 	{
 		const std::wstring ShaderDir = FPaths::ShaderDir();
-		DebugBoxVS = FShaderMap::Get().GetOrCreateVertexShader(Device, (ShaderDir + L"SceneEffects/DecalVertexShader.hlsl").c_str());
-		DebugBoxPS = FShaderMap::Get().GetOrCreatePixelShader(Device, (ShaderDir + L"SceneEffects/DecalDebugPixelShader.hlsl").c_str());
+		DebugBoxVS = FShaderMap::Get().GetOrCreateVertexShader(Device, (ShaderDir + L"SceneEffects/DebugVolumeBoxVertexShader.hlsl").c_str());
+		DebugBoxPS = FShaderMap::Get().GetOrCreatePixelShader(Device, (ShaderDir + L"SceneEffects/DebugVolumeBoxPixelShader.hlsl").c_str());
 		if (!DebugBoxPS || !DebugBoxVS) return false;
 	}
 	

@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include "CoreMinimal.h"
 #include "Renderer/Features/Decal/DecalStats.h"
@@ -39,7 +39,8 @@ public:
 		FRenderer& Renderer,
 		const FDecalRenderRequest& Request,
 		const FSceneRenderTargets& Targets,
-		ID3D11RenderTargetView* RenderTargetView);
+		ID3D11RenderTargetView* RenderTargetView,
+		const FLinearColor& DebugColor);
 
 	void Release();
 

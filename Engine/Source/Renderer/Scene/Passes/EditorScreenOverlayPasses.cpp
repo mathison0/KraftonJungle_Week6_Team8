@@ -31,7 +31,36 @@ namespace
 
 		FDecalRenderFeature* DecalFeature = Context.Renderer.GetDecalFeature();
 		return DecalFeature
-			? DecalFeature->RenderDebugOverlay(Context.Renderer, Request, Context.Targets, OverlayRenderTarget)
+			? DecalFeature->RenderDebugOverlay(
+				Context.Renderer,
+				Request,
+				Context.Targets,
+				OverlayRenderTarget,
+				FLinearColor(1.0f, 0.6f, 0.1f, 1.0f))
+			: true;
+	}
+
+	bool RenderLocalFogDebugOverlay(FPassContext& Context, ID3D11RenderTargetView* OverlayRenderTarget)
+	{
+		if (!OverlayRenderTarget || Context.SceneViewData.PostProcessInputs.FogItems.empty())
+		{
+			return true;
+		}
+
+		const FDecalRenderRequest Request = BuildLocalFogDebugPassRequest(Context.SceneViewData);
+		if (!Request.bDebugDraw || Request.Items.empty())
+		{
+			return true;
+		}
+
+		FDecalRenderFeature* DecalFeature = Context.Renderer.GetDecalFeature();
+		return DecalFeature
+			? DecalFeature->RenderDebugOverlay(
+				Context.Renderer,
+				Request,
+				Context.Targets,
+				OverlayRenderTarget,
+				FLinearColor(0.65f, 0.25f, 1.0f, 1.0f))
 			: true;
 	}
 }
@@ -55,6 +84,17 @@ bool FEditorPrimitivePass::Execute(FPassContext& Context)
 		Context.SceneViewData.Frame,
 		Context.SceneViewData.View);
 	if (!RenderDecalDebugOverlay(Context, OverlayRenderTarget))
+	{
+		EndPass(
+			Context.Renderer,
+			Context.Targets.SceneColorRTV,
+			Context.Targets.SceneDepthDSV,
+			Context.SceneViewData.View.Viewport,
+			Context.SceneViewData.Frame,
+			Context.SceneViewData.View);
+		return false;
+	}
+	if (!RenderLocalFogDebugOverlay(Context, OverlayRenderTarget))
 	{
 		EndPass(
 			Context.Renderer,
